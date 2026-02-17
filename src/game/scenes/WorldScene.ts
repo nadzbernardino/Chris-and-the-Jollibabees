@@ -13,7 +13,7 @@ import {
   DESIGN_W, DESIGN_H, SCENE, ROOM_ORDER, ROOM_JOLLIBABEE_MAP,
   ROOM_TASKS, SCENE_TO_BG, JOLLIBABEES,
 } from '../constants';
-import { PAL, PAL_CSS, TEXT, UI, PIXEL_FONT, drawPlaque, fs } from '../uiTheme';
+import { PAL, PAL_CSS, TEXT, UI, PIXEL_FONT, drawPlaque, fs, IS_MOBILE } from '../uiTheme';
 import { store } from '../store/GameStoreNew';
 import { FollowerSystem } from '../ui/FollowerSystem';
 import { HUDNew } from '../ui/HUDNew';
@@ -103,11 +103,13 @@ export class WorldScene extends Phaser.Scene {
   private r3_deskZone!: Phaser.GameObjects.Rectangle;
   private r3_progressBar!: Phaser.GameObjects.Graphics;
   private r3_progressText!: Phaser.GameObjects.Text;
+  private r3_workArrow!: Phaser.GameObjects.Text;
   private r3_darmeshTriggered = false;
   private r3_darmeshAnswered = false;
   private r3_darmeshIgnoreCount = 0;
   private r3_whaleCoinTimer?: Phaser.Time.TimerEvent;
   private r3_doomScrollCount = 0;
+  private r3_doomScrollCloseCount = 0;
   private darmeshWorkCycles = 0;
   private darmeshRecallTimer?: Phaser.Time.TimerEvent;
 
@@ -125,10 +127,12 @@ export class WorldScene extends Phaser.Scene {
   private r4_mirror!: Phaser.GameObjects.Image;
   private r4_penguin!: Phaser.GameObjects.Image;
   private penguinHugCount = 0;
+  private vitUses = 0;
 
   // ── Room 5: Bathroom ─────────────────────────────────
   private laundryCount = 0;
   private r5_basket!: Phaser.GameObjects.Image;
+  private r5_basketLabel!: Phaser.GameObjects.Text;
   private r5_clothesItems: Phaser.GameObjects.Image[] = [];
 
   // ── Room 6: Balcony ──────────────────────────────────
@@ -174,9 +178,7 @@ export class WorldScene extends Phaser.Scene {
           }
         });
     // Stop intro music if still playing (uses shared Phaser sound manager)
-    const audioMgr = new AudioManager(this);
-    audioMgr.stopIntroMusic();
-    audioMgr.playGameplayMusic();
+    try { this.sound.stopByKey('intro_music'); } catch { /* noop */ }
 
     // ── Reset runtime state ─────────────────────────────
     this.currentRoom = 0;
@@ -195,6 +197,7 @@ export class WorldScene extends Phaser.Scene {
     this.r3_darmeshAnswered = false;
     this.r3_darmeshIgnoreCount = 0;
     this.r3_doomScrollCount = 0;
+    this.r3_doomScrollCloseCount = 0;
     this.darmeshWorkCycles = 0;
     if (this.r3_whaleCoinTimer) { this.r3_whaleCoinTimer.destroy(); this.r3_whaleCoinTimer = undefined; }
     if (this.darmeshRecallTimer) { this.darmeshRecallTimer.destroy(); this.darmeshRecallTimer = undefined; }
@@ -205,6 +208,7 @@ export class WorldScene extends Phaser.Scene {
     this.totalTasksCompleted = 0;
     this.wineClickCount = 0;
     this.penguinHugCount = 0;
+    this.vitUses = 0;
     this.isConsuming = false;
     this.mobileLeft = false;
     this.mobileRight = false;
@@ -269,8 +273,8 @@ export class WorldScene extends Phaser.Scene {
 
     // ── Audio ────────────────────────────────────────────
     this.audio = new AudioManager(this);
-    // Start cute background music loop
-    //this.time.delayedCall(500, () => this.audio.startAmbient());
+    this.audio.unlockAudio();
+    this.audio.playGameplayMusic();
 
     // ── Speech Bubble Manager ────────────────────────────
     this.bubbleMgr = new SpeechBubbleManager();
@@ -325,8 +329,8 @@ export class WorldScene extends Phaser.Scene {
     // Sleeping stops the drain permanently.
     this.startHeartDrainTimer();
 
-    // ── Early fatigue warning at 4min (before first drain at 5min) ──
-    this.time.delayedCall(240000, () => {
+    // ── Early fatigue warning at 6min (before first drain at 7.5min) ──
+    this.time.delayedCall(360000, () => {
       if (!store.s.hasSlept && !this.endingActive) {
         this.audio.thunk();
         this.showChrisBubble('I\'m getting tired... I should find a bed.');
@@ -335,11 +339,11 @@ export class WorldScene extends Phaser.Scene {
 
   }
 
-  /** Fatigue: lose 1 heart every 90s until Chris sleeps. */
+  /** Fatigue: lose 1 heart every 7.5min until Chris sleeps. */
   private startHeartDrainTimer(): void {
     if (this.heartDrainTimer) { this.heartDrainTimer.destroy(); }
     this.heartDrainTimer = this.time.addEvent({
-      delay: 300000,
+      delay: 450000,
       loop: true,
       callback: () => {
         if (store.s.hasSlept || this.endingActive) return; // sleeping stops drain
@@ -443,16 +447,17 @@ export class WorldScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════
 
   private createMobileControls(): void {
-    const size = 80;
-    const pad = 30;
+    const size = IS_MOBILE ? 130 : 80;
+    const pad = IS_MOBILE ? 20 : 30;
     const y = DESIGN_H - pad - size / 2;
+    const fontSize = IS_MOBILE ? fs(36) : fs(24);
 
     // Left arrow
     const lBg = this.add.rectangle(pad + size / 2, y, size, size, PAL.darkPine, 0.5)
       .setStrokeStyle(2, PAL.gold, 0.6)
       .setScrollFactor(0).setDepth(700).setInteractive();
     this.add.text(pad + size / 2, y, '◀', {
-      fontFamily: PIXEL_FONT, fontSize: fs(24), color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize, color: PAL_CSS.gold,
       stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(701);
 
@@ -465,7 +470,7 @@ export class WorldScene extends Phaser.Scene {
       .setStrokeStyle(2, PAL.gold, 0.6)
       .setScrollFactor(0).setDepth(700).setInteractive();
     this.add.text(DESIGN_W - pad - size / 2, y, '▶', {
-      fontFamily: PIXEL_FONT, fontSize: fs(24), color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize, color: PAL_CSS.gold,
       stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(701);
 
@@ -492,9 +497,13 @@ export class WorldScene extends Phaser.Scene {
 
       const roomKey = ROOM_DEFS[newRoom].sceneKey;
       const hasTasks = ROOM_TASKS[roomKey]?.length > 0;
-      // Show 'task is done here' bubble if room is complete (on every entry, including first)
       if (hasTasks && store.isRoomComplete(roomKey)) {
+        // Show 'task is done here' bubble if room is complete
         this.time.delayedCall(300, () => this.showChrisBubble(this.getTaskDoneMessage(roomKey)));
+      } else if (hasTasks && !store.isRoomComplete(roomKey)) {
+        // Show quest clue on every room entry if tasks are undone
+        const clue = this.getRoomQuestClue(newRoom);
+        if (clue) this.time.delayedCall(300, () => this.showChrisBubble(clue));
       }
 
       if (!this.roomsEntered.has(newRoom)) {
@@ -624,13 +633,13 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Start (or restart) a 120-second overtime timer for the current room. Lose 1 heart when it fires. */
+  /** Start (or restart) a 6-minute overtime timer for the current room. Lose 1 heart when it fires. */
   private startRoomOvertimeTimer(): void {
     if (this.roomOvertimeTimer) {
       this.roomOvertimeTimer.destroy();
       this.roomOvertimeTimer = undefined;
     }
-    this.roomOvertimeTimer = this.time.delayedCall(240000, () => {
+    this.roomOvertimeTimer = this.time.delayedCall(360000, () => {
       if (this.endingActive) return;
       store.removeHeart(1);
       store.addEnergy(-10);
@@ -692,6 +701,49 @@ export class WorldScene extends Phaser.Scene {
         this.triggerTimeWastedGameOver('Time is up! You didn\'t finish everything in 15 minutes.');
       }
     });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  ROOM QUEST CLUES — shown on every room entry if tasks undone
+  // ═══════════════════════════════════════════════════════
+
+  private getRoomQuestClue(room: number): string | null {
+    switch (room) {
+      case 0:
+        if (!store.isTaskDone(SCENE.KITCHEN_SINK, 'dishes'))
+          return 'I need to wash the dishes before picking up Babitee!';
+        return null;
+      case 2:
+        if (!store.isTaskDone(SCENE.LIVING_ROOM, 'trash'))
+          return 'Gotta clean up this trash before Babitee gets here!';
+        if (!store.isTaskDone(SCENE.LIVING_ROOM, 'vacuum'))
+          return 'The floor is still dusty. I should vacuum!';
+        return null;
+      case 3:
+        if (!store.isTaskDone(SCENE.OFFICE, 'work'))
+          return 'I need to finish work at the desk before picking up Babitee!';
+        return null;
+      case 4:
+        if (!store.isTaskDone(SCENE.BEDROOM, 'sleep'))
+          return 'I should get some rest before heading out for Babitee.';
+        return null;
+      case 5:
+        if (!store.isTaskDone(SCENE.BATHROOM, 'laundry'))
+          return 'I need to do the laundry before getting Babitee!';
+        if (!store.isTaskDone(SCENE.BATHROOM, 'folding'))
+          return 'Clothes are washed but I still need to fold them!';
+        return null;
+      case 6:
+        if (!store.isTaskDone(SCENE.BALCONY, 'water'))
+          return 'The bonsai needs watering before I can leave for Babitee!';
+        return null;
+      case 7:
+        if (!store.allQuestsComplete())
+          return 'I\'m not done yet. Gotta finish all rooms before picking up Babitee!';
+        return null;
+      default:
+        return null;
+    }
   }
 
   // ═══════════════════════════════════════════════════════
@@ -867,10 +919,10 @@ export class WorldScene extends Phaser.Scene {
       // Set callback in registry, pause world, launch minigame
       this.registry.set('dishCallback', () => {
         this.markTaskDone(roomKey, 'dishes');
-        // L1 reward: Prep +10, Energy -5, Diamonds +2
-        store.addPrep(10);
+        // L1 reward: Prep +8, Energy -5, Diamonds +1
+        store.addPrep(8);
         store.addEnergy(-5);
-        store.addDiamonds(2);
+        store.addDiamonds(1);
         this.r0_dirtyPlates.setVisible(false);
         this.r0_cleanPlates.setVisible(true);
         this.r0_progressText.setText('✅ Done');
@@ -892,7 +944,7 @@ export class WorldScene extends Phaser.Scene {
     sizeH(this.r0_coffee, COFFEE_H);
     drawShadow(this, this.r0_coffee.x, COFFEE_Y + COFFEE_H / 2, COFFEE_H * 0.7);
 
-    if (store.s.coffeeUses >= 2) this.r0_coffee.setTint(0x666666);
+    if (store.s.coffeeUses >= store.coffeeMax) this.r0_coffee.setTint(0x666666);
 
     this.r0_coffee.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
@@ -907,15 +959,15 @@ export class WorldScene extends Phaser.Scene {
         fxHeartFlash(this, true);
         this.audio.bloop();
         fxSparkle(this, this.r0_coffee.x, this.r0_coffee.y, 8, 40);
-        if (store.s.coffeeUses === 1) {
-          this.bubbleMgr.chrisSay('☕ +1 ❤️ +10 ⚡', 2500);
+        if (store.s.coffeeUses < store.coffeeMax) {
+          this.bubbleMgr.chrisSay(`☕ +1 ❤️ +10 ⚡ (${store.s.coffeeUses}/${store.coffeeMax})`, 2500);
           this.r0_coffee.setAlpha(0.7);
         } else {
           this.bubbleMgr.chrisSay('☕ Last cup! +1 ❤️ +10 ⚡', 2500);
           this.r0_coffee.setTint(0x666666);
         }
       } else {
-        this.bubbleMgr.chrisSay('No more coffee left.', 2000);
+        this.bubbleMgr.chrisSay('Need more coffee! Buy some at the shop. ☕🛒', 2500);
       }
     });
 
@@ -995,16 +1047,24 @@ export class WorldScene extends Phaser.Scene {
 
     this.r1_water.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
-      // Water can be drunk anytime — no canConsume() gating
-      this.lastDrinkTime = Date.now();
-      this.playConsumeAnimation('chris_water', this.r1_water);
-      store.addHeart(1);
-      store.addEnergy(8);
-      this.hud.refresh();
-      fxHeartFlash(this, true);
-      this.audio.bloop();
-      fxSparkle(this, this.r1_water.x, this.r1_water.y, 8, 40);
-      this.bubbleMgr.chrisSay('💧 Stay hydrated! +1 ❤️ +8 ⚡', 2500);
+      if (!this.canConsume()) return;
+      if (store.useWater()) {
+        this.lastDrinkTime = Date.now();
+        this.playConsumeAnimation('chris_water', this.r1_water);
+        store.addEnergy(8);
+        this.hud.refresh();
+        this.audio.bloop();
+        fxSparkle(this, this.r1_water.x, this.r1_water.y, 8, 40);
+        if (store.s.waterUses < 3) {
+          this.bubbleMgr.chrisSay(`💧 Stay hydrated! +8 ⚡ (${store.s.waterUses}/3)`, 2500);
+          this.r1_water.setAlpha(0.7);
+        } else {
+          this.bubbleMgr.chrisSay('💧 Last glass! +8 ⚡', 2500);
+          this.r1_water.setTint(0x666666);
+        }
+      } else {
+        this.bubbleMgr.chrisSay('No more water left.', 2000);
+      }
     });
 
     // Energy drink consumable — beside water
@@ -1022,18 +1082,17 @@ export class WorldScene extends Phaser.Scene {
       if (store.useEnergyDrink()) {
         this.lastDrinkTime = Date.now();
         this.playConsumeAnimation('chris_energy', this.r1_energyDrink);
-        // Energy drink: +1 Heart, +20 Energy
-        store.addHeart(1);
+        // Energy drink: +20 Energy, -1 Integrity (jittery)
         store.addEnergy(20);
+        store.addIntegrity(-1);
         this.hud.refresh();
-        fxHeartFlash(this, true);
         this.audio.bloop();
         fxSparkle(this, this.r1_energyDrink.x, this.r1_energyDrink.y, 8, 40);
         if (store.s.energyDrinkUses === 1) {
-          this.bubbleMgr.chrisSay('⚡ +1 ❤️ +20 ⚡', 2500);
+          this.bubbleMgr.chrisSay('⚡ +20 Energy, -1 Integrity', 2500);
           this.r1_energyDrink.setAlpha(0.7);
         } else {
-          this.bubbleMgr.chrisSay('⚡ WIRED! +1 ❤️ +20 ⚡', 2500);
+          this.bubbleMgr.chrisSay('⚡ WIRED! +20 Energy, -1 Integrity', 2500);
           this.r1_energyDrink.setTint(0x666666);
         }
       } else {
@@ -1131,21 +1190,33 @@ export class WorldScene extends Phaser.Scene {
     sizeH(burgerImg, DRINK_H);
     drawShadow(this, burgerImg.x, DRINK_Y + DRINK_H / 2, DRINK_H * 0.7);
 
+    if (store.s.burgerUses >= store.burgerMax) burgerImg.setTint(0x666666);
+
     burgerImg.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
       if (!this.canConsume()) return;
       // Only allow if hearts < 3
-      if (store.s.hearts < 3) {
+      if (store.s.hearts >= 3) {
+        this.showChrisBubble('I feel fine right now. Save it for when I\'m low.');
+        return;
+      }
+      if (store.useBurger()) {
         this.lastDrinkTime = Date.now();
         this.playConsumeAnimation('chris_burger', burgerImg);
         store.addHeart(1);
+        store.addEnergy(5);
         this.hud.refresh();
         fxHeartFlash(this, true);
         this.audio.heartGain();
-        this.bubbleMgr.chrisSay('🍔 That hit the spot! +1 ❤️', 2500);
-        burgerImg.setVisible(false);
+        if (store.s.burgerUses < store.burgerMax) {
+          this.bubbleMgr.chrisSay(`🍔 That hit the spot! +1 ❤️ +5 ⚡ (${store.s.burgerUses}/${store.burgerMax})`, 2500);
+          burgerImg.setAlpha(0.7);
+        } else {
+          this.bubbleMgr.chrisSay('🍔 Last burger! +1 ❤️ +5 ⚡', 2500);
+          burgerImg.setTint(0x666666);
+        }
       } else {
-        this.showChrisBubble('I feel fine right now. Save it for when I\'m low.');
+        this.bubbleMgr.chrisSay('Need more food! Buy some at the shop. 🍔🛒', 2500);
       }
     });
 
@@ -1189,7 +1260,7 @@ export class WorldScene extends Phaser.Scene {
     this.r1_barbell.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
       if (this.r1_exercising) return;
-      if (this.r1_exerciseCount >= 3) {
+      if (this.r1_exerciseCount >= 4) {
         this.showChrisBubble('No more exercise... too much time wasted!');
         return;
       }
@@ -1208,27 +1279,36 @@ export class WorldScene extends Phaser.Scene {
   private showMarketModal(): void {
     const items: { label: string; cost: number; canBuy: () => boolean; action: () => void }[] = [
       {
-        label: `☕ Coffee (5💎) – Energy +10`,
+        label: `☕ Coffee (5💎) – +1 cup`,
         cost: 5,
         canBuy: () => store.s.diamonds >= 5,
         action: () => {
           store.addDiamonds(-5);
-          store.addEnergy(10);
-          store.addIntegrity(-1);
+          store.s.coffeePurchases++;
           this.hud.refresh();
-          this.showChrisBubble('Fresh cup! ☕');
+          this.showChrisBubble(`Got more coffee! ☕ (${store.coffeeMax} cups available)`);
         },
       },
       {
-        label: `🛍️ Grocery (8💎) – Prep +8, Energy +5`,
-        cost: 8,
-        canBuy: () => store.s.diamonds >= 8,
+        label: `🍔 Food (5💎) – +1 burger`,
+        cost: 5,
+        canBuy: () => store.s.diamonds >= 5,
         action: () => {
-          store.addDiamonds(-8);
-          store.addPrep(8);
-          store.addEnergy(5);
+          store.addDiamonds(-5);
+          store.s.foodPurchases++;
           this.hud.refresh();
-          this.showChrisBubble('Got the groceries! 🛍️');
+          this.showChrisBubble(`Got more food! 🍔 (${store.burgerMax} burgers available)`);
+        },
+      },
+      {
+        label: `📱 Gadget (20💎) – Integrity -5`,
+        cost: 20,
+        canBuy: () => store.s.diamonds >= 20,
+        action: () => {
+          store.addDiamonds(-20);
+          store.addIntegrity(-5);
+          this.hud.refresh();
+          this.showChrisBubble('New gadget... was it worth it? 📱');
         },
       },
       {
@@ -1405,8 +1485,19 @@ export class WorldScene extends Phaser.Scene {
         this.bubbleMgr.jbSayRandom('Oops, not enough time to clean the house!', 3000);
       });
 
-      // Check if exercised too much — 3rd time = game over
-      if (this.r1_exerciseCount >= 3) {
+      // Combination check: sleep + exercise >= 5 = game over
+      if (store.s.sleepUses + this.r1_exerciseCount >= 5) {
+        this.r1_barbell.setTint(0x666666);
+        barbellLabel.setText('🏋️ Done');
+        barbellLabel.setColor('#888888');
+        this.time.delayedCall(3000, () => {
+          this.triggerTimeWastedGameOver('Too much resting! You spent all your time sleeping and exercising.');
+        });
+        return;
+      }
+
+      // Check if exercised too much — 4th time = game over
+      if (this.r1_exerciseCount >= 4) {
         this.r1_barbell.setTint(0x666666);
         barbellLabel.setText('🏋️ Done');
         barbellLabel.setColor('#888888');
@@ -1417,8 +1508,8 @@ export class WorldScene extends Phaser.Scene {
       }
 
       // Show exercise count on label
-      barbellLabel.setText(`🏋️ ${this.r1_exerciseCount}/2`);
-      if (this.r1_exerciseCount >= 2) {
+      barbellLabel.setText(`🏋️ ${this.r1_exerciseCount}/3`);
+      if (this.r1_exerciseCount >= 3) {
         barbellLabel.setColor('#FF8888');
       }
 
@@ -1462,7 +1553,7 @@ export class WorldScene extends Phaser.Scene {
     // Trash label — hidden until first item dragged
     this.r2_trashLabel = this.add.text(
       this.rx(room, ROOM_WIDTH * 0.92), FLOOR_Y - TRASHBIN_H - 20,
-      trashDone ? '✅' : '',
+      trashDone ? '✅' : `0/8`,
       { ...TEXT.small },
     ).setOrigin(0.5).setDepth(15);
 
@@ -1603,22 +1694,15 @@ export class WorldScene extends Phaser.Scene {
     // Coffee on the desk — same effect as kitchen coffee
     const OFFICE_COFFEE_H = 140;
     const officeCoffee = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 105, 'coffee',
+      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 70, 'coffee',
     ).setDepth(10).setInteractive({ useHandCursor: true });
     sizeH(officeCoffee, OFFICE_COFFEE_H);
 
-    if (store.s.coffeeUses >= 2) officeCoffee.setTint(0x666666);
+    if (store.s.coffeeUses >= store.coffeeMax) officeCoffee.setTint(0x666666);
 
     officeCoffee.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
-      if (Date.now() - this.lastDrinkTime < 20000) {
-        this.showChrisBubble('Easy... let that one settle first.');
-        return;
-      }
-      if (store.s.energy >= 100 && store.s.hearts >= 3) {
-        this.showChrisBubble('I\'m full on energy and hearts right now.');
-        return;
-      }
+      if (!this.canConsume()) return;
       if (store.useCoffee()) {
         this.lastDrinkTime = Date.now();
         store.addHeart(1);
@@ -1627,8 +1711,8 @@ export class WorldScene extends Phaser.Scene {
         fxHeartFlash(this, true);
         this.audio.bloop();
         fxSparkle(this, officeCoffee.x, officeCoffee.y, 8, 40);
-        if (store.s.coffeeUses === 1) {
-          this.bubbleMgr.chrisSay('☕ +1 ❤️ +10 ⚡', 2500);
+        if (store.s.coffeeUses < store.coffeeMax) {
+          this.bubbleMgr.chrisSay(`☕ +1 ❤️ +10 ⚡ (${store.s.coffeeUses}/${store.coffeeMax})`, 2500);
           officeCoffee.setAlpha(0.7);
           if (this.r0_coffee) this.r0_coffee.setAlpha(0.7);
         } else {
@@ -1637,7 +1721,7 @@ export class WorldScene extends Phaser.Scene {
           if (this.r0_coffee) this.r0_coffee.setTint(0x666666);
         }
       } else {
-        this.bubbleMgr.chrisSay('No more coffee left.', 2000);
+        this.bubbleMgr.chrisSay('Need more coffee! Buy some at the shop. ☕🛒', 2500);
       }
     });
 
@@ -1659,6 +1743,23 @@ export class WorldScene extends Phaser.Scene {
     this.r3_progressBar = this.add.graphics().setDepth(12);
     this.updateWorkProgressBar();
 
+    // Bouncing arrow indicator above desk when work is undone
+    this.r3_workArrow = this.add.text(
+      this.rx(room, ROOM_WIDTH * 0.48), TABLE_Y - 160,
+      '⬇️ WORK HERE', { ...TEXT.small },
+    ).setOrigin(0.5).setDepth(15);
+    this.r3_workArrow.setVisible(!workDone);
+    if (!workDone) {
+      this.tweens.add({
+        targets: this.r3_workArrow,
+        y: this.r3_workArrow.y + 12,
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
     this.r3_deskZone.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
       if (store.isTaskDone(roomKey, 'work')) return;
@@ -1679,11 +1780,13 @@ export class WorldScene extends Phaser.Scene {
         this.markTaskDone(roomKey, 'work');
         this.r3_progressText.setText('✅');
         this.r3_deskZone.setStrokeStyle(2, PAL.gold, 0);
+        this.r3_workArrow.setVisible(false);
+        this.tweens.killTweensOf(this.r3_workArrow);
         fxSparkle(this, this.r3_deskZone.x, this.r3_deskZone.y, 12, 60);
-        // Reward: Prep +12, Energy -5, Diamonds +3
-        store.addPrep(12);
+        // Reward: Prep +6, Energy -5, Diamonds +1
+        store.addPrep(6);
         store.addEnergy(-5);
-        store.addDiamonds(3);
+        store.addDiamonds(1);
         this.trySpawnJollibabee(roomKey);
         this.showTaskComplete(roomKey);
         this.darmeshWorkCycles = (this.darmeshWorkCycles || 0) + 1;
@@ -1787,13 +1890,17 @@ export class WorldScene extends Phaser.Scene {
     ).setDepth(10).setVisible(false);
     sizeH(this.r4_bedChris, BED_H);
 
-    if (store.s.sleepUses >= 3) this.r4_bed.setTint(0x666666);
+    if (store.s.sleepUses >= 4) this.r4_bed.setTint(0x666666);
     else if (sleepDone) this.r4_bed.setAlpha(0.8);
 
     this.r4_bed.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
       if (store.s.sleepUses >= 3) {
-        this.showChrisBubble('Can\'t sleep anymore. Too much to do!');
+        // 4th tap = game over
+        this.showChrisBubble('I really need to stop napping...');
+        this.time.delayedCall(1500, () => {
+          this.triggerTimeWastedGameOver('You slept too much and ran out of time to do all the chores!');
+        });
         return;
       }
       if (store.s.diamonds < 3) {
@@ -1895,35 +2002,37 @@ export class WorldScene extends Phaser.Scene {
       this.followers.show();
 
       store.s.sleepUses++;
-      store.addDiamonds(-3);    // Costs 3 diamonds each time
-
-      // Sleep costs time — speed up overtime by 20s
-      this.speedUpOvertimeTimer(20);
+      store.addDiamonds(-3);
+      this.addBonusTime(-20);  // Sleep costs 20s on HUD timer
 
       if (store.s.sleepUses === 1) {
         // First nap: full restore
-        store.s.energy = 100;     // Energy = 100 (full restore)
-        store.addPrep(15);        // Preparation +15
-        store.addIntegrity(5);    // Integrity +5
-        store.addHeart(1);        // +1 heart from rest
-        store.s.hasSlept = true;  // Stops heart drain
-        this.showChrisBubble('Zzz... that was nice! ⚡100 💎-3');
-      } else if (store.s.sleepUses >= 3) {
-        // Third nap — too much sleeping, game over
-        store.s.energy = Math.min(100, store.s.energy + 30);
-        this.hud.refresh();
-        this.showChrisBubble('Zzz... just five more minutes...');
-        this.r4_bed.setTint(0x666666);
-        this.time.delayedCall(2000, () => {
-          this.triggerTimeWastedGameOver('You slept too much and ran out of time to do all the chores!');
-        });
-        return;
-      } else {
-        // Second nap: reduced rewards
+        store.s.energy = 100;
+        store.addPrep(10);
+        store.addIntegrity(5);
+        store.addHeart(1);
+        store.s.hasSlept = true;
+        this.showChrisBubble('Zzz... that was nice! ⚡100 +10 Prep 💎-3');
+      } else if (store.s.sleepUses === 2) {
+        // Second nap: partial restore
         store.s.energy = Math.min(100, store.s.energy + 50);
         store.addPrep(5);
         store.addHeart(1);
         this.showChrisBubble('A quick power nap. ⚡+50 💎-3');
+      } else if (store.s.sleepUses === 3) {
+        // Third nap: minimal restore, heavy time cost
+        store.s.energy = Math.min(100, store.s.energy + 30);
+        store.addHeart(1);
+        this.showChrisBubble('One more nap... feeling guilty. ⚡+30 💎-3');
+      }
+
+      // Combination check: sleep + exercise >= 5 = game over
+      if (store.s.sleepUses + this.r1_exerciseCount >= 5) {
+        this.hud.refresh();
+        this.time.delayedCall(3000, () => {
+          this.triggerTimeWastedGameOver('You spent too much time resting and never finished the chores!');
+        });
+        return;
       }
 
       this.hud.refresh();
@@ -1931,7 +2040,7 @@ export class WorldScene extends Phaser.Scene {
 
       // Time warning from jollibabees
       this.time.delayedCall(2500, () => {
-        this.bubbleMgr.jbSayRandom('Oops, not enough time to clean the house!', 3000);
+        this.bubbleMgr.jbSayRandom('Dadibee, we\'re running out of time!', 3000);
       });
 
       // Only mark task done on first sleep (for jollibabee unlock + room complete)
@@ -2087,14 +2196,17 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  // ── Remote pickup (bedroom floor, optional) ───────────
+  // ── Bedroom pickups (remote, vit, watch, headphones) ───
   private setupBedroomPickups(room: number): void {
+    const PICKUP_H = 220; // same height as wallet
+
+    // Remote — on the wall
     if (!store.hasPickedUp('remote')) {
-      const PICKUP_H = 308;
+      const REMOTE_H = 308;
       const remoteImg = this.add.image(
-        this.rx(room, ROOM_WIDTH * 0.20), Math.round(WALL_Y * 0.7 * 1.15), 'remote',
+        this.rx(room, ROOM_WIDTH * 0.20), Math.round(WALL_Y * 0.7 * 1.35), 'remote',
       ).setDepth(10).setInteractive({ useHandCursor: true });
-      sizeH(remoteImg, PICKUP_H);
+      sizeH(remoteImg, REMOTE_H);
 
       remoteImg.on('pointerdown', () => {
         if (this.currentRoom !== room || this.modal.isOpen) return;
@@ -2104,6 +2216,99 @@ export class WorldScene extends Phaser.Scene {
         this.audio.pop();
         this.bubbleMgr.chrisSay('Picked up the remote! 📺', 2500);
         remoteImg.destroy();
+      });
+    }
+
+    // Vitamin bottle — beside the remote on the wall
+    const vitImg = this.add.image(
+      this.rx(room, ROOM_WIDTH * 0.30), Math.round(WALL_Y * 0.7 * 1.35), 'vit',
+    ).setDepth(10).setInteractive({ useHandCursor: true });
+    sizeH(vitImg, PICKUP_H);
+    if (this.vitUses >= 2) vitImg.setTint(0x666666);
+
+    vitImg.on('pointerdown', () => {
+      if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
+      if (this.vitUses >= 2) {
+        this.showChrisBubble('No more vitamins left.');
+        return;
+      }
+      if (!this.canConsume()) return;
+      this.vitUses++;
+      this.lastDrinkTime = Date.now();
+      this.isConsuming = true;
+      vitImg.setVisible(false);
+      const originalTexture = this.chris.texture.key;
+
+      // Chewing animation: chris_vit → (chris_vit1 → chris_vit2) × 3, 0.3s each
+      const chewFrames = [
+        'chris_vit',   // 0ms — grab
+        'chris_vit1',  // 300ms — open mouth
+        'chris_vit2',  // 600ms — chew
+        'chris_vit1',  // 900ms — open
+        'chris_vit2',  // 1200ms — chew
+        'chris_vit1',  // 1500ms — open
+        'chris_vit2',  // 1800ms — chew
+      ];
+      chewFrames.forEach((frame, i) => {
+        this.time.delayedCall(i * 300, () => {
+          if (!this.chris || this.gameOverTriggered) return;
+          this.chris.setTexture(frame);
+          sizeH(this.chris, CHRIS_H);
+        });
+      });
+
+      // Revert after last chew (1800ms) + 0.5s hold = 2300ms, grant heart
+      this.time.delayedCall(2300, () => {
+        if (this.chris && !this.gameOverTriggered) {
+          this.chris.setTexture(originalTexture);
+          sizeH(this.chris, CHRIS_H);
+        }
+        this.isConsuming = false;
+        vitImg.setVisible(true);
+        store.addHeart(1);
+        this.hud.refresh();
+        fxHeartFlash(this, true);
+        this.audio.bloop();
+        fxSparkle(this, vitImg.x, vitImg.y, 8, 40);
+        this.bubbleMgr.chrisSay(`💊 Vitamins! +1 ❤️ (${this.vitUses}/2)`, 2500);
+        if (this.vitUses >= 2) vitImg.setTint(0x666666);
+      });
+    });
+
+    // Watch — on the floor near penguin, adds time
+    if (!store.hasPickedUp('watch')) {
+      const watchImg = this.add.image(
+        this.r4_penguin.x + 80, FLOOR_Y - PICKUP_H / 2, 'watch',
+      ).setDepth(10).setInteractive({ useHandCursor: true });
+      sizeH(watchImg, PICKUP_H);
+
+      watchImg.on('pointerdown', () => {
+        if (this.currentRoom !== room || this.modal.isOpen) return;
+        store.pickUp('watch');
+        fxPop(this, watchImg.x, watchImg.y);
+        fxSparkle(this, watchImg.x, watchImg.y, 10, 50);
+        this.audio.pop();
+        store.addBonusSeconds(60);
+        this.hud.refresh();
+        this.bubbleMgr.chrisSay('Found a watch! ⌚ +60s added!', 2500);
+        watchImg.destroy();
+      });
+    }
+
+    // Headphones — on the floor near penguin, cosmetic pickup
+    if (!store.hasPickedUp('headphones')) {
+      const hpImg = this.add.image(
+        this.r4_penguin.x - 80, FLOOR_Y - PICKUP_H / 2, 'headphones',
+      ).setDepth(10).setInteractive({ useHandCursor: true });
+      sizeH(hpImg, PICKUP_H);
+
+      hpImg.on('pointerdown', () => {
+        if (this.currentRoom !== room || this.modal.isOpen) return;
+        store.pickUp('headphones');
+        fxPop(this, hpImg.x, hpImg.y);
+        this.audio.pop();
+        this.bubbleMgr.chrisSay('Found my headphones! 🎧', 2500);
+        hpImg.destroy();
       });
     }
   }
@@ -2125,6 +2330,13 @@ export class WorldScene extends Phaser.Scene {
     ).setDepth(10);
     sizeH(this.r5_basket, BASKET_H);
     drawShadow(this, this.r5_basket.x, FLOOR_Y, BASKET_H * 0.5);
+
+    // Laundry count label above basket
+    this.r5_basketLabel = this.add.text(
+      this.r5_basket.x, FLOOR_Y - BASKET_H - 20,
+      laundryDone ? '✅' : `0/10`,
+      { ...TEXT.small },
+    ).setOrigin(0.5).setDepth(15);
 
     // Clothes items (draggable)
     if (!laundryDone) {
@@ -2181,9 +2393,8 @@ export class WorldScene extends Phaser.Scene {
         // Launch folding minigame
         this.registry.set('foldingCallback', () => {
           this.markTaskDone(roomKey, 'folding');
-          // Folding reward: Prep +10, Integrity +3
-          store.addPrep(10);
-          store.addIntegrity(3);
+          // Folding reward: Prep +5
+          store.addPrep(5);
           r5_clothes.setVisible(false);
           r5_hangers.setVisible(false);
           fxSparkle(this, this.r5_basket.x, this.r5_basket.y, 12, 60);
@@ -2225,7 +2436,7 @@ export class WorldScene extends Phaser.Scene {
     sizeH(this.r6_bonsaiPretty, PROP_L);
 
     // Bucket — always visible (doesn't disappear after watering)
-    const BUCKET_H = Math.round(PROP_M * 0.2);
+    const BUCKET_H = Math.round(PROP_M * 0.36);
     this.r6_bucket = this.add.image(
       this.rx(room, ROOM_WIDTH * 0.25), FLOOR_Y - BUCKET_H / 2, 'bucket',
     ).setDepth(10)
@@ -2461,12 +2672,12 @@ export class WorldScene extends Phaser.Scene {
   private setupRoom7_ExitDoor(): void {
     const room = 7;
 
-    // Door in beehive_home.png is the small arched door at bottom-center-right
-    // Approx position on 1536x1024 canvas: X ~780, Y ~820, size ~120x160
-    const doorX = this.rx(room, ROOM_WIDTH * 0.51);
-    const doorY = 810;
-    const doorW = 130;
-    const doorH = 170;
+    // Door in beehive_home.png: brown arched door on the right side of the beehive base
+    // On 1536x1024 canvas: approximately X ~58% of room width, Y ~800, wider hit zone
+    const doorX = this.rx(room, ROOM_WIDTH * 0.58);
+    const doorY = 790;
+    const doorW = 160;
+    const doorH = 200;
 
     this.r7_doorZone = this.add.rectangle(
       doorX, doorY,
@@ -2501,9 +2712,9 @@ export class WorldScene extends Phaser.Scene {
     // Stat gate check per CLAUDE.md
     const s = store.s;
     const missing: string[] = [];
-    if (s.preparation < 70) missing.push(`Prep ${s.preparation}/70`);
-    if (s.energy < 40)      missing.push(`Energy ${s.energy}/40`);
-    if (s.diamonds < 5)     missing.push(`Diamonds ${s.diamonds}/5`);
+    if (s.preparation < 90) missing.push(`Prep ${s.preparation}/90`);
+    if (s.energy < 50)      missing.push(`Energy ${s.energy}/50`);
+    if (s.diamonds < 10)    missing.push(`Diamonds ${s.diamonds}/10`);
     if (s.hearts < 1)       missing.push('No hearts!');
 
     if (missing.length > 0) {
@@ -2553,9 +2764,9 @@ export class WorldScene extends Phaser.Scene {
           if (this.trashCount >= 8) {
             const roomKey = SCENE.LIVING_ROOM;
             this.markTaskDone(roomKey, 'trash');
-            // Trash reward: Prep +8, Diamonds +2
-            store.addPrep(8);
-            store.addDiamonds(2);
+            // Trash reward: Prep +5, Diamonds +1
+            store.addPrep(5);
+            store.addDiamonds(1);
             this.r2_trashLabel.setText('✅');
             fxSparkle(this, this.r2_trashBin.x, this.r2_trashBin.y, 10, 50);
             this.trySpawnJollibabee(roomKey);
@@ -2580,10 +2791,12 @@ export class WorldScene extends Phaser.Scene {
             duration: 250, onComplete: () => obj.destroy(),
           });
           this.laundryCount++;
+          this.r5_basketLabel.setText(`${this.laundryCount}/10`);
 
           if (this.laundryCount >= 10) {
             const roomKey = SCENE.BATHROOM;
             this.markTaskDone(roomKey, 'laundry');
+            this.r5_basketLabel.setText('✅');
             // Laundry reward: Prep +8, Energy -5
             store.addPrep(8);
             store.addEnergy(-5);
@@ -2651,14 +2864,11 @@ export class WorldScene extends Phaser.Scene {
             countdownActive = false;
             if (countdownTimer) countdownTimer.destroy();
             if (countdownText) countdownText.destroy();
-            // Block: +1 Heart, Integrity +3, Prep +3, Diamonds +1
+            // Block: +1 Heart only
             store.addHeart(1);
-            store.addIntegrity(3);
-            store.addPrep(3);
-            store.addDiamonds(1);
             this.hud.refresh();
             fxSparkle(this, this.chris.x, this.chris.y - 40, 8);
-            this.showChrisBubble('🛡️ Blocked! +1 ❤️ +3 Prep, +1 💎');
+            this.showChrisBubble('🛡️ Blocked! +1 ❤️');
             this.jbReactToEvent('block');
           },
           color: 0x336633,
@@ -2733,23 +2943,30 @@ export class WorldScene extends Phaser.Scene {
               return;
             }
             if (wouldWin) {
-              // Win: Diamonds +15
+              // Win: Diamonds +15, Prep +5, Integrity -1
               store.addDiamonds(15);
+              store.addPrep(5);
+              store.addIntegrity(-1);
               store.recordWhaleCoinWin();
               this.hud.refresh();
               fxSparkle(this, this.chris.x, this.chris.y, 12, 70);
               this.audio.heartGain();
-              this.showChrisBubble('🚀 TO THE MOON! +15 💎!');
+              this.showChrisBubble('🚀 TO THE MOON! +15 💎 +5 Prep!');
               this.jbReactToEvent('whale_win');
             } else {
-              // Lose: Diamonds -8 (but never below 0)
+              // Lose: Diamonds -8, Prep -3, Integrity -5, Hearts -1, Timer -8s
               store.addDiamonds(-8);
+              store.addPrep(-3);
+              store.addIntegrity(-5);
+              store.removeHeart(1);
               store.recordWhaleCoinLoss();
+              this.addBonusTime(-8);
               this.hud.refresh();
               fxOuchFlicker(this);
               this.audio.heartLose();
-              this.showChrisBubble('📉 It crashed... -8 💎');
+              this.showChrisBubble('📉 It crashed... -8 💎 -1 ❤️ -8s!');
               this.jbReactToEvent('whale_lose');
+              this.checkGameOver();
             }
           },
           color: 0x5c3a21,
@@ -2757,18 +2974,15 @@ export class WorldScene extends Phaser.Scene {
         {
           label: '❌ Ignore',
           callback: () => {
-            // Nothing changes — but Chris sees what would have happened
+            // Ignore: Diamonds +2, Integrity +1
+            store.addDiamonds(2);
+            store.addIntegrity(1);
+            this.hud.refresh();
             this.audio.popupClose();
             if (wouldWin) {
-              this.showChrisBubble('You ignored it... it went to the moon. 🚀');
-              this.time.delayedCall(2500, () => {
-                this.showChrisBubble('Would have been +15 💎... oh well.');
-              });
+              this.showChrisBubble('Stayed clean. +2 💎 +1 Integrity. It would have mooned... 🚀');
             } else {
-              this.showChrisBubble('You ignored it... it crashed. 📉');
-              this.time.delayedCall(2500, () => {
-                this.showChrisBubble('Dodged a bullet! Smart move. 🧠');
-              });
+              this.showChrisBubble('Smart! +2 💎 +1 Integrity. It crashed anyway. 📉');
             }
           },
           color: 0x336633,
@@ -2803,18 +3017,13 @@ export class WorldScene extends Phaser.Scene {
         {
           label: '📱 Scroll More',
           callback: () => {
-            // Scroll: Integrity -5, Timer -20s (heavy penalty)
+            // Scroll: Integrity -5, global timer -8s
             store.addIntegrity(-5);
-            this.speedUpOvertimeTimer(20);
-            // Check if timer is out after losing time
-            if (this.roomOvertimeTimer && this.roomOvertimeTimer.getRemaining() <= 0) {
-              this.triggerTimeWastedGameOver('Oops, not enough time to clean the house!');
-              return;
-            }
+            this.addBonusTime(-8);
             this.hud.refresh();
             fxOuchFlicker(this);
             this.audio.heartLose();
-            this.showChrisBubble('Can\'t stop scrolling... -5 Integrity 🕐-20s');
+            this.showChrisBubble('Can\'t stop scrolling... -5 Integrity 🕐-8s');
             this.time.delayedCall(2500, () => {
               this.bubbleMgr.jbSayRandom('Oops, not enough time to clean the house!', 3000);
             });
@@ -2831,17 +3040,20 @@ export class WorldScene extends Phaser.Scene {
         {
           label: '✖ Close Phone',
           callback: () => {
-            // Close: Integrity +1 but still loses time 🕐-10s
+            this.r3_doomScrollCloseCount++;
             store.addIntegrity(1);
-            this.speedUpOvertimeTimer(10);
-            // Check if timer is out after losing time
-            if (this.roomOvertimeTimer && this.roomOvertimeTimer.getRemaining() <= 0) {
-              this.triggerTimeWastedGameOver('Oops, not enough time to clean the house!');
-              return;
+            // 3rd+ close: time penalty for phone habit
+            if (this.r3_doomScrollCloseCount >= 3) {
+              this.addBonusTime(-5);
+              this.hud.refresh();
+              this.audio.popupClose();
+              this.showChrisBubble('Put it down... +1 Integrity, 🕐-5s (phone habit)');
+            } else {
+              // 1st-2nd close: no timer penalty
+              this.hud.refresh();
+              this.audio.popupClose();
+              this.showChrisBubble('Good, put it down. +1 Integrity');
             }
-            this.hud.refresh();
-            this.audio.popupClose();
-            this.showChrisBubble('Put it down... but lost time. +1 Integrity, 🕐-10s');
             this.jbReactToEvent('close_phone');
           },
           color: 0x336633,
@@ -2967,6 +3179,7 @@ export class WorldScene extends Phaser.Scene {
             this.r3_progressText.setText('0/6');
             this.r3_deskZone.setStrokeStyle(2, PAL.gold, 0.3);
             this.updateWorkProgressBar();
+            this.showWorkArrow();
             this.hud.refresh();
             this.showChrisBubble('More work from Darmesh... here we go again! 💼');
             // Stat boost for accepting
@@ -2985,6 +3198,7 @@ export class WorldScene extends Phaser.Scene {
             this.r3_progressText.setText('0/6');
             this.r3_deskZone.setStrokeStyle(2, PAL.gold, 0.3);
             this.updateWorkProgressBar();
+            this.showWorkArrow();
             this.hud.refresh();
             store.addIntegrity(-3);
             this.hud.refresh();
@@ -2996,20 +3210,34 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  private showWorkArrow(): void {
+    this.r3_workArrow.setVisible(true);
+    this.tweens.killTweensOf(this.r3_workArrow);
+    this.r3_workArrow.setY(this.rx(3, 0) ? TABLE_Y - 160 : TABLE_Y - 160);
+    this.tweens.add({
+      targets: this.r3_workArrow,
+      y: this.r3_workArrow.y + 12,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
   // ═══════════════════════════════════════════════════════
   //  TASK HELPERS
   // ═══════════════════════════════════════════════════════
 
   private markTaskDone(roomKey: string, taskId: string): void {
     store.completeTask(roomKey, taskId);
-    // Completing any task boosts confidence
-    store.addIntegrity(3);
+    // Small integrity boost per task — reward for doing chores
+    store.addIntegrity(1);
     this.hud.refresh();
     this.audio.taskComplete();
 
-    // Fatigue: every 3 tasks completed = lose 1 heart
+    // Fatigue: every 4 tasks completed = lose 1 heart
     this.totalTasksCompleted++;
-    if (this.totalTasksCompleted % 3 === 0) {
+    if (this.totalTasksCompleted % 4 === 0) {
       store.removeHeart(1);
       this.hud.refresh();
       fxOuchFlicker(this);
@@ -3112,20 +3340,22 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Shared gating for consumables: allow when heart or energy is low, block + cooldown when both full.
-   *  Override: if hearts < 3, always allow (skip cooldown) so player can heal. */
+  /** Shared gating for consumables.
+   *  Always enforces 8s minimum cooldown (prevents spam).
+   *  20s cooldown when both hearts AND energy are full. */
   private canConsume(): boolean {
-    // If hearts are low, override cooldown — let the player heal
-    if (store.s.hearts < 3) return true;
-    // 20s cooldown between any drinks
-    if (Date.now() - this.lastDrinkTime < 20000) {
+    const elapsed = Date.now() - this.lastDrinkTime;
+    // Always enforce 8s minimum between consumables
+    if (elapsed < 8000) {
       this.showChrisBubble('Easy... let that one settle first.');
       return false;
     }
-    // Block only when BOTH hearts AND energy are full
+    // 20s cooldown when both hearts AND energy are full
     if (store.s.energy >= 100 && store.s.hearts >= 3) {
-      this.showChrisBubble('I\'m full on energy and hearts right now.');
-      return false;
+      if (elapsed < 20000) {
+        this.showChrisBubble('I\'m full on energy and hearts right now.');
+        return false;
+      }
     }
     return true;
   }

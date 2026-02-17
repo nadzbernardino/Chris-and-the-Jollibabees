@@ -53,7 +53,7 @@ export const BG_ASSETS: Record<string, string> = {
   kitchen_sink_bg:   `${BG}kitchen_sink_bg.png`,
   kitchen_stove_bg:  `${BG}kitchen_stove_bg.png`,
   living_room_bg:    `${BG}living_room_bg.png`,
-  workstation_bg:    `${BG}workstation_bg.png?v=3`,
+  workstation_bg:    `${BG}workstation_bg.png?v=4`,
   bedroom_bg:        `${BG}bedroom_bg.png`,
   bathroom_bg:       `${BG}bathroom_bg.png`,
   balcony_garden_bg: `${BG}balcony_garden_bg.png`,
@@ -97,6 +97,9 @@ export const ASSETS: Record<string, string> = {
   chris_wine:       `${CHAR}chris_wine.png`,
   chris_energy:     `${CHAR}chris_energy.png`,
   chris_hugs:       `${CHAR}chris_hugs.png`,
+  chris_vit:        `${CHAR}chris_vit.png`,
+  chris_vit1:       `${CHAR}chris_vit1.png`,
+  chris_vit2:       `${CHAR}chris_vit2.png`,
   mamibee_left:         `${CHAR}Mamibee_left_facing.png`,
   mamibee_left_shock:   `${CHAR}Mamibee_left_facing_shock.png`,
   mamibee_right:        `${CHAR}Mamibee_right_facing.png`,
@@ -157,6 +160,9 @@ export const ASSETS: Record<string, string> = {
   penguin:          `${PROP}penguin.png`,
   burger:           `${PROP}burger.png`,
   plasticbag:       `${PROP}plasticbag.png`,
+  vit:              `${PROP}vit.png`,
+  watch:            `${PROP}watch.png`,
+  headphones:       `${PROP}headphones.png`,
 
   // Doom scroll phone screenshots (13–28)
   ...Object.fromEntries(
@@ -205,13 +211,14 @@ export const JOLLIBABEES: JollibabeeDef[] = [
 /**
  * Which room index (in ROOM_ORDER) spawns which jollibabee index.
  * room scene key → jollibabee index in JOLLIBABEES array.
- * Some rooms spawn 2 (living room).
+ * 1 per room, 6 rooms = 6 jollibabees.
  */
 export const ROOM_JOLLIBABEE_MAP: Record<string, number[]> = {
-  [SCENE.KITCHEN_SINK]:  [0],     // JolliCute after dishes
-  [SCENE.LIVING_ROOM]:   [1, 2],  // JolliBart (vacuum) + JolliLite (trash)
-  [SCENE.OFFICE]:        [3],     // JolliBurrito after work
-  [SCENE.BEDROOM]:       [4],     // JolliBig after sleep
+  [SCENE.KITCHEN_SINK]:  [0],     // JolliCute (Leader) after dishes
+  [SCENE.LIVING_ROOM]:   [1],     // JolliBart (Dreamer) after trash/vacuum
+  [SCENE.OFFICE]:        [2],     // JolliLite (Bullied) after work
+  [SCENE.BEDROOM]:       [4],     // JolliBig (Big) after sleep
+  [SCENE.BATHROOM]:      [3],     // JolliBurrito (Fly) after laundry
   [SCENE.BALCONY]:       [5],     // JolliBay after watering
 };
 

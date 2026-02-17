@@ -27,6 +27,9 @@ export interface GameState {
   waterUses: number;    // 0..2 (max 2 uses)
   energyDrinkUses: number; // 0..2 (max 2 uses)
   hasFlowers: boolean;
+  coffeePurchases: number;  // each market buy adds +1 use
+  foodPurchases: number;    // each market buy adds +1 burger use
+  burgerUses: number;
   hasSlept: boolean;
   sleepUses: number;    // 0..2 (max 2 naps)
   /** Optional pickups found (one-time per game) */
@@ -56,6 +59,9 @@ function createInitialState(): GameState {
     waterUses: 0,
     energyDrinkUses: 0,
     hasFlowers: false,
+    coffeePurchases: 0,
+    foodPurchases: 0,
+    burgerUses: 0,
     hasSlept: false,
     sleepUses: 0,
     pickedUp: {},
@@ -180,9 +186,19 @@ class GameStore {
   set roomIndex(v: number) { this.state.currentRoomIndex = v; }
 
   // ─── Consumables ───────────────────────────────────────
+  /** Coffee: 1 free use + 1 per market purchase */
+  get coffeeMax(): number { return 1 + this.state.coffeePurchases; }
   useCoffee(): boolean {
-    if (this.state.coffeeUses >= 2) return false;
+    if (this.state.coffeeUses >= this.coffeeMax) return false;
     this.state.coffeeUses++;
+    return true;
+  }
+
+  /** Burger: 1 free use + 1 per market purchase */
+  get burgerMax(): number { return 1 + this.state.foodPurchases; }
+  useBurger(): boolean {
+    if (this.state.burgerUses >= this.burgerMax) return false;
+    this.state.burgerUses++;
     return true;
   }
 
@@ -193,6 +209,7 @@ class GameStore {
   }
 
   useWater(): boolean {
+    if (this.state.waterUses >= 3) return false;
     this.state.waterUses++;
     return true;
   }
