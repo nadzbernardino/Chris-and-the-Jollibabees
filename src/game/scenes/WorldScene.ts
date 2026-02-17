@@ -13,7 +13,7 @@ import {
   DESIGN_W, DESIGN_H, SCENE, ROOM_ORDER, ROOM_JOLLIBABEE_MAP,
   ROOM_TASKS, SCENE_TO_BG, JOLLIBABEES,
 } from '../constants';
-import { PAL, PAL_CSS, TEXT, UI, PIXEL_FONT, drawPlaque } from '../uiTheme';
+import { PAL, PAL_CSS, TEXT, UI, PIXEL_FONT, drawPlaque, fs } from '../uiTheme';
 import { store } from '../store/GameStoreNew';
 import { FollowerSystem } from '../ui/FollowerSystem';
 import { HUDNew } from '../ui/HUDNew';
@@ -123,6 +123,8 @@ export class WorldScene extends Phaser.Scene {
   private r4_bed!: Phaser.GameObjects.Image;
   private r4_bedChris!: Phaser.GameObjects.Image;
   private r4_mirror!: Phaser.GameObjects.Image;
+  private r4_penguin!: Phaser.GameObjects.Image;
+  private penguinHugCount = 0;
 
   // ── Room 5: Bathroom ─────────────────────────────────
   private laundryCount = 0;
@@ -202,6 +204,7 @@ export class WorldScene extends Phaser.Scene {
     this.lastIntegrityThreshold = 2;  // integrity starts at 50 → threshold 2
     this.totalTasksCompleted = 0;
     this.wineClickCount = 0;
+    this.penguinHugCount = 0;
     this.isConsuming = false;
     this.mobileLeft = false;
     this.mobileRight = false;
@@ -258,7 +261,7 @@ export class WorldScene extends Phaser.Scene {
     // Room name indicator
     this.roomNameText = this.add.text(DESIGN_W / 2, 20, ROOM_DEFS[0].name, {
       ...TEXT.small,
-      fontSize: '20px',
+      fontSize: fs(12),
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(601);
 
     // ── Modal ────────────────────────────────────────────
@@ -449,7 +452,7 @@ export class WorldScene extends Phaser.Scene {
       .setStrokeStyle(2, PAL.gold, 0.6)
       .setScrollFactor(0).setDepth(700).setInteractive();
     this.add.text(pad + size / 2, y, '◀', {
-      fontFamily: PIXEL_FONT, fontSize: '36px', color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize: fs(24), color: PAL_CSS.gold,
       stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(701);
 
@@ -462,7 +465,7 @@ export class WorldScene extends Phaser.Scene {
       .setStrokeStyle(2, PAL.gold, 0.6)
       .setScrollFactor(0).setDepth(700).setInteractive();
     this.add.text(DESIGN_W - pad - size / 2, y, '▶', {
-      fontFamily: PIXEL_FONT, fontSize: '36px', color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize: fs(24), color: PAL_CSS.gold,
       stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(701);
 
@@ -680,6 +683,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Add bonus time to the overall 15-minute game timer */
   private addBonusTime(seconds: number): void {
+    store.addBonusSeconds(seconds); // track in store so HUD countdown reflects it
     if (!this.overallGameTimer) return;
     const remaining = this.overallGameTimer.getRemaining();
     this.overallGameTimer.destroy();
@@ -849,7 +853,7 @@ export class WorldScene extends Phaser.Scene {
     this.r0_progressText = this.add.text(
       this.rx(room, ROOM_WIDTH * 0.82), PLATES_Y - 100,
       done ? '✅ Done' : 'clean the dishes',
-      { ...TEXT.small, fontSize: '22px', color: PAL_CSS.ivory, fontStyle: 'bold' },
+      { ...TEXT.small, fontSize: fs(13), color: PAL_CSS.ivory, fontStyle: 'bold' },
     ).setOrigin(0.5).setDepth(15);
 
     // Hide label if plates are clean, show if dirty
@@ -895,7 +899,7 @@ export class WorldScene extends Phaser.Scene {
       if (!this.canConsume()) return;
       if (store.useCoffee()) {
         this.lastDrinkTime = Date.now();
-        this.playConsumeAnimation('chris_coffee');
+        this.playConsumeAnimation('chris_coffee', this.r0_coffee);
         // Coffee: +1 Heart, +10 Energy
         store.addHeart(1);
         store.addEnergy(10);
@@ -959,7 +963,7 @@ export class WorldScene extends Phaser.Scene {
       if (!this.canConsume()) return;
       if (store.useWhey()) {
         this.lastDrinkTime = Date.now();
-        this.playConsumeAnimation('chris_whey');
+        this.playConsumeAnimation('chris_whey', this.r1_whey);
         // Whey: +1 Heart, +15 Energy
         store.addHeart(1);
         store.addEnergy(15);
@@ -993,7 +997,7 @@ export class WorldScene extends Phaser.Scene {
       if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
       // Water can be drunk anytime — no canConsume() gating
       this.lastDrinkTime = Date.now();
-      this.playConsumeAnimation('chris_water');
+      this.playConsumeAnimation('chris_water', this.r1_water);
       store.addHeart(1);
       store.addEnergy(8);
       this.hud.refresh();
@@ -1017,7 +1021,7 @@ export class WorldScene extends Phaser.Scene {
       if (!this.canConsume()) return;
       if (store.useEnergyDrink()) {
         this.lastDrinkTime = Date.now();
-        this.playConsumeAnimation('chris_water');
+        this.playConsumeAnimation('chris_energy', this.r1_energyDrink);
         // Energy drink: +1 Heart, +20 Energy
         store.addHeart(1);
         store.addEnergy(20);
@@ -1085,26 +1089,35 @@ export class WorldScene extends Phaser.Scene {
         this.audio.heartLose();
 
         if (this.wineClickCount >= 4) {
-          // Fatal 4th drink — show chris_dizzy directly (skip playConsumeAnimation
-          // so its 3.5s revert timer doesn't overwrite the dizzy texture)
-          if (this.chris) {
-            this.chris.setTexture('chris_dizzy');
-            sizeH(this.chris, CHRIS_H);
-            this.chris.setDepth(970); // above game over overlay (depth 950)
-          }
+          // Fatal 4th drink — show chris_wine 2.5s → chris_dizzy 3s → game over
           this.isConsuming = true; // block further consume clicks
           this.gameOverTriggered = true; // block other game overs
+          wineImg.setVisible(false); // Chris is holding it
+          if (this.chris) {
+            this.chris.setTexture('chris_wine');
+            sizeH(this.chris, CHRIS_H);
+          }
           this.audio.heartLose();
-          this.bubbleMgr.chrisSay('🍷🥴 Too much wine... feeling dizzy...', 3000);
-          // Delay 3s so players can see chris_dizzy before game over overlay
-          this.time.delayedCall(3000, () => {
-            this.gameOverTriggered = false;
-            this.triggerTimeWastedGameOver('Drank too much wine and got dizzy... 🍷🥴');
+          this.bubbleMgr.chrisSay('🍷 One more sip...', 2500);
+          // After 2.5s drinking, switch to dizzy
+          this.time.delayedCall(2500, () => {
+            if (this.chris) {
+              this.chris.setTexture('chris_dizzy');
+              sizeH(this.chris, CHRIS_H);
+              this.chris.setDepth(970); // above game over overlay (depth 950)
+            }
+            this.audio.heartLose();
+            this.bubbleMgr.chrisSay('🍷🥴 Too much wine... feeling dizzy...', 3000);
+            // 3s delay showing chris_dizzy before game over overlay
+            this.time.delayedCall(3000, () => {
+              this.gameOverTriggered = false;
+              this.triggerTimeWastedGameOver('Drank too much wine and got dizzy... 🍷🥴');
+            });
           });
           return;
         }
         // Non-fatal wine drink — play consume animation normally
-        this.playConsumeAnimation('chris_wine');
+        this.playConsumeAnimation('chris_wine', wineImg);
         this.bubbleMgr.chrisSay(`🍷 Ugh... that was a mistake. -1 ❤️ (${this.wineClickCount}/4)`, 3000);
         this.checkLowHeart();
         this.checkGameOver();
@@ -1124,7 +1137,7 @@ export class WorldScene extends Phaser.Scene {
       // Only allow if hearts < 3
       if (store.s.hearts < 3) {
         this.lastDrinkTime = Date.now();
-        this.playConsumeAnimation('chris_burger');
+        this.playConsumeAnimation('chris_burger', burgerImg);
         store.addHeart(1);
         this.hud.refresh();
         fxHeartFlash(this, true);
@@ -1142,11 +1155,11 @@ export class WorldScene extends Phaser.Scene {
     const shopBg = this.add.rectangle(0, 0, 180, 120, PAL.wood)
       .setStrokeStyle(3, PAL.darkWood);
     const shopLabel = this.add.text(0, -14, '🛒 Shop', {
-      fontFamily: PIXEL_FONT, fontSize: '20px', color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize: fs(12), color: PAL_CSS.gold,
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
     const shopDiamond = this.add.text(0, 22, '💎', {
-      fontSize: '28px',
+      fontSize: fs(18),
     }).setOrigin(0.5);
     this.r1_shop = this.add.container(SHOP_X, SHOP_Y, [shopBg, shopLabel, shopDiamond])
       .setDepth(10).setSize(120, 80).setInteractive({ useHandCursor: true });
@@ -1169,7 +1182,7 @@ export class WorldScene extends Phaser.Scene {
 
     // Label
     const barbellLabel = this.add.text(BARBELL_X, BARBELL_Y - BARBELL_H / 2 - 20, '🏋️ Exercise', {
-      fontFamily: PIXEL_FONT, fontSize: '18px', color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize: fs(11), color: PAL_CSS.gold,
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(15);
 
@@ -1312,7 +1325,7 @@ export class WorldScene extends Phaser.Scene {
     // Rep counter overlay
     let reps = 0;
     const repText = this.add.text(DESIGN_W / 2, 120, '🏋️ Exercising... 0 reps', {
-      fontFamily: PIXEL_FONT, fontSize: '22px', color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize: fs(13), color: PAL_CSS.gold,
       stroke: '#000000', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(600).setScrollFactor(0);
 
@@ -1532,7 +1545,7 @@ export class WorldScene extends Phaser.Scene {
   private startPhoneRing(phone: Phaser.GameObjects.Image): void {
     // Notification badge
     const badge = this.add.text(phone.x + 20, phone.y - 40, '🔴', {
-      fontSize: '26px',
+      fontSize: fs(16),
     }).setDepth(11).setAlpha(0);
 
     // Ring cycle: every 12-20s, phone buzzes for attention
@@ -1590,7 +1603,7 @@ export class WorldScene extends Phaser.Scene {
     // Coffee on the desk — same effect as kitchen coffee
     const OFFICE_COFFEE_H = 140;
     const officeCoffee = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 90, 'coffee',
+      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 50, 'coffee',
     ).setDepth(10).setInteractive({ useHandCursor: true });
     sizeH(officeCoffee, OFFICE_COFFEE_H);
 
@@ -1792,6 +1805,56 @@ export class WorldScene extends Phaser.Scene {
 
     // Remote pickup on bedroom floor
     this.setupBedroomPickups(room);
+
+    // Penguin stuffed toy — lower left side of bed, same size as whey (140px)
+    const PENGUIN_H = 140;
+    const bedLeftX = this.r4_bed.x - (this.r4_bed.displayWidth / 2);
+    this.r4_penguin = this.add.image(
+      bedLeftX - PENGUIN_H / 2 + 20, FLOOR_Y - PENGUIN_H * 1.4, 'penguin',
+    ).setDepth(10).setInteractive({ useHandCursor: true });
+    sizeH(this.r4_penguin, PENGUIN_H);
+    drawShadow(this, this.r4_penguin.x, FLOOR_Y, PENGUIN_H * 0.5);
+
+    this.r4_penguin.on('pointerdown', () => {
+      if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
+      if (this.penguinHugCount >= 3) {
+        this.showChrisBubble('Already gave the penguin enough love!');
+        return;
+      }
+      this.penguinHugCount++;
+      this.isConsuming = true; // block other actions during hug
+      this.r4_penguin.setVisible(false);
+
+      // Transform Chris to hugging pose
+      const originalTexture = this.chris.texture.key;
+      this.chris.setTexture('chris_hugs');
+      sizeH(this.chris, CHRIS_H);
+
+      // Reward: +1 heart, +2 diamonds per hug
+      store.addHeart(1);
+      store.addDiamonds(2);
+      this.hud.refresh();
+      fxHeartFlash(this, true);
+      this.audio.bloop();
+      fxSparkle(this, this.r4_penguin.x, this.r4_penguin.y, 8, 40);
+      this.bubbleMgr.chrisSay(`🐧 Hugging Mr. Penguin! +1 ❤️ +2 💎 (${this.penguinHugCount}/3)`, 2000);
+
+      // After 2s, revert Chris and show penguin again
+      this.time.delayedCall(2000, () => {
+        if (this.chris && !this.gameOverTriggered) {
+          this.chris.setTexture(originalTexture);
+          sizeH(this.chris, CHRIS_H);
+        }
+        this.isConsuming = false;
+        if (this.penguinHugCount < 3) {
+          this.r4_penguin.setVisible(true);
+        } else {
+          // After 3rd hug, penguin stays visible but tinted
+          this.r4_penguin.setVisible(true);
+          this.r4_penguin.setTint(0x888888);
+        }
+      });
+    });
 
     // Mirror — near the floor, far right
     this.r4_mirror = this.add.image(
@@ -2029,7 +2092,7 @@ export class WorldScene extends Phaser.Scene {
     if (!store.hasPickedUp('remote')) {
       const PICKUP_H = 308;
       const remoteImg = this.add.image(
-        this.rx(room, ROOM_WIDTH * 0.20), FLOOR_Y - PICKUP_H / 2 - 80, 'remote',
+        this.rx(room, ROOM_WIDTH * 0.20), Math.round(WALL_Y * 0.7), 'remote',
       ).setDepth(10).setInteractive({ useHandCursor: true });
       sizeH(remoteImg, PICKUP_H);
 
@@ -2621,7 +2684,7 @@ export class WorldScene extends Phaser.Scene {
 
     // Countdown text overlay (updates every second)
     countdownText = this.add.text(DESIGN_W / 2, 100, `⏱️ ${remaining}s`, {
-      fontFamily: PIXEL_FONT, fontSize: '26px', color: '#FF6666',
+      fontFamily: PIXEL_FONT, fontSize: fs(16), color: '#FF6666',
       stroke: '#000000', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(1100).setScrollFactor(0);
 
@@ -3060,20 +3123,23 @@ export class WorldScene extends Phaser.Scene {
     return true;
   }
 
-  /** Swap Chris's texture to a consume animation for 3.5s, then revert.
+  /** Swap Chris's texture to a consume animation for 2.5s, then revert.
+   *  Optionally hides a prop image while consuming (Chris is "holding" it).
    *  Uses sizeH to keep same proportional height as default Chris. */
   private isConsuming = false;
-  private playConsumeAnimation(textureKey: string): void {
+  private playConsumeAnimation(textureKey: string, propImg?: Phaser.GameObjects.Image): void {
     if (this.isConsuming || !this.chris) return;
     this.isConsuming = true;
     const originalTexture = this.chris.texture.key;
     this.chris.setTexture(textureKey);
     sizeH(this.chris, CHRIS_H);
-    this.time.delayedCall(3500, () => {
+    if (propImg) propImg.setVisible(false);
+    this.time.delayedCall(2500, () => {
       if (this.chris && !this.gameOverTriggered) {
         this.chris.setTexture(originalTexture);
         sizeH(this.chris, CHRIS_H);
       }
+      if (propImg) propImg.setVisible(true);
       this.isConsuming = false;
     });
   }
@@ -3134,12 +3200,12 @@ export class WorldScene extends Phaser.Scene {
     ).setDepth(950).setInteractive().setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 100, 'GAME OVER', {
-      fontFamily: PIXEL_FONT, fontSize: '56px', color: '#FF4444',
+      fontFamily: PIXEL_FONT, fontSize: fs(36), color: '#FF4444',
       stroke: '#000000', strokeThickness: 8,
     }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 10, 'You ran out of hearts!', {
-      fontFamily: PIXEL_FONT, fontSize: '22px', color: PAL_CSS.ivory,
+      fontFamily: PIXEL_FONT, fontSize: fs(13), color: PAL_CSS.ivory,
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
 
@@ -3150,7 +3216,7 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(960).setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 100, '🔄 Try Again', {
-      fontFamily: PIXEL_FONT, fontSize: '24px', color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize: fs(14), color: PAL_CSS.gold,
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(961).setScrollFactor(0);
 
@@ -3173,12 +3239,12 @@ export class WorldScene extends Phaser.Scene {
     ).setDepth(950).setInteractive().setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 100, 'GAME OVER', {
-      fontFamily: PIXEL_FONT, fontSize: '56px', color: '#FF4444',
+      fontFamily: PIXEL_FONT, fontSize: fs(36), color: '#FF4444',
       stroke: '#000000', strokeThickness: 8,
     }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 10, reason, {
-      fontFamily: PIXEL_FONT, fontSize: '20px', color: PAL_CSS.ivory,
+      fontFamily: PIXEL_FONT, fontSize: fs(12), color: PAL_CSS.ivory,
       stroke: '#000000', strokeThickness: 4,
       wordWrap: { width: 700 },
       align: 'center',
@@ -3191,7 +3257,7 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(960).setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 100, '🔄 Try Again', {
-      fontFamily: PIXEL_FONT, fontSize: '24px', color: PAL_CSS.gold,
+      fontFamily: PIXEL_FONT, fontSize: fs(14), color: PAL_CSS.gold,
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(961).setScrollFactor(0);
 
@@ -3379,7 +3445,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 40, endMsg, {
-      ...TEXT.body, align: 'center', fontSize: '22px',
+      ...TEXT.body, align: 'center', fontSize: fs(13),
       color: PAL_CSS.warmGold,
     }).setOrigin(0.5).setDepth(810);
 
@@ -3388,7 +3454,7 @@ export class WorldScene extends Phaser.Scene {
       `Energy: ${s.energy}  |  Diamonds: ${s.diamonds}\n` +
       `Jollibabees: ${s.jollibabeesFound.length}/6\n` +
       `Whale Wins: ${s.whaleCoinWins}  |  Whale Losses: ${s.whaleCoinLosses}`, {
-        ...TEXT.body, align: 'center', fontSize: '16px',
+        ...TEXT.body, align: 'center', fontSize: fs(9),
       }).setOrigin(0.5).setDepth(810);
 
     const rbW = UI.btnW;

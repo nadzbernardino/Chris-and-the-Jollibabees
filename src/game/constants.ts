@@ -53,7 +53,7 @@ export const BG_ASSETS: Record<string, string> = {
   kitchen_sink_bg:   `${BG}kitchen_sink_bg.png`,
   kitchen_stove_bg:  `${BG}kitchen_stove_bg.png`,
   living_room_bg:    `${BG}living_room_bg.png`,
-  workstation_bg:    `${BG}workstation_bg.png`,
+  workstation_bg:    `${BG}workstation_bg.png?v=3`,
   bedroom_bg:        `${BG}bedroom_bg.png`,
   bathroom_bg:       `${BG}bathroom_bg.png`,
   balcony_garden_bg: `${BG}balcony_garden_bg.png`,
@@ -87,14 +87,16 @@ const JB   = 'assets/jollibabees/';
 
 export const ASSETS: Record<string, string> = {
   // Characters
-  chris_right:      `${CHAR}Chris_right_facingv2.png`,
-  chris_left:       `${CHAR}Chris_left_facingv2.png`,
+  chris_right:      `${CHAR}Chris_right_facing.png?v=3`,
+  chris_left:       `${CHAR}Chris_left_facing.png?v=3`,
   chris_dizzy:      `${CHAR}chris_dizzy.png`,
   chris_whey:       `${CHAR}chris_whey.png`,
   chris_coffee:     `${CHAR}chris_coffee.png`,
   chris_burger:     `${CHAR}chris_brudger.png`,
   chris_water:      `${CHAR}chris_water.png`,
   chris_wine:       `${CHAR}chris_wine.png`,
+  chris_energy:     `${CHAR}chris_energy.png`,
+  chris_hugs:       `${CHAR}chris_hugs.png`,
   mamibee_left:         `${CHAR}Mamibee_left_facing.png`,
   mamibee_left_shock:   `${CHAR}Mamibee_left_facing_shock.png`,
   mamibee_right:        `${CHAR}Mamibee_right_facing.png`,
@@ -152,6 +154,7 @@ export const ASSETS: Record<string, string> = {
   money:            `${PROP}money.png`,
   wallet:           `${PROP}wallet.png`,
   wine:             `${PROP}wine.png`,
+  penguin:          `${PROP}penguin.png`,
   burger:           `${PROP}burger.png`,
   plasticbag:       `${PROP}plasticbag.png`,
 

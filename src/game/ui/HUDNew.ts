@@ -8,16 +8,16 @@
  */
 import Phaser from 'phaser';
 import { DESIGN_W } from '../constants';
-import { PAL, PAL_CSS, TEXT, PIXEL_FONT } from '../uiTheme';
+import { PAL, PAL_CSS, TEXT, PIXEL_FONT, IS_MOBILE, fs } from '../uiTheme';
 import { store } from '../store/GameStoreNew';
 
-const HEART_SIZE = 40;   // width of one pixel heart (scaled up)
-const HEART_GAP  = 8;
+const HEART_SIZE = IS_MOBILE ? 40 : 28;
+const HEART_GAP  = IS_MOBILE ? 8 : 6;
 const HUD_X      = 24;
 const HUD_Y      = 20;
-const BAR_W      = 160;
-const BAR_H      = 14;
-const BAR_GAP    = 36;
+const BAR_W      = IS_MOBILE ? 160 : 100;
+const BAR_H      = IS_MOBILE ? 14 : 8;
+const BAR_GAP    = IS_MOBILE ? 36 : 22;
 const LABEL_W    = 60;
 
 export class HUDNew {
@@ -49,7 +49,7 @@ export class HUDNew {
     // Diamonds counter (top-right, above timer)
     this.diamondsText = this.scene.add.text(DESIGN_W - HUD_X, HUD_Y, '💎 0', {
       fontFamily: PIXEL_FONT,
-      fontSize: '22px',
+      fontSize: fs(12),
       color: '#88DDFF',
       stroke: '#000000',
       strokeThickness: 4,
@@ -57,9 +57,9 @@ export class HUDNew {
     this.container.add(this.diamondsText);
 
     // Timer text (top-right, below diamonds)
-    this.timerText = this.scene.add.text(DESIGN_W - HUD_X, HUD_Y + 30, '00:00', {
+    this.timerText = this.scene.add.text(DESIGN_W - HUD_X, HUD_Y + (IS_MOBILE ? 30 : 20), '15:00', {
       fontFamily: PIXEL_FONT,
-      fontSize: '24px',
+      fontSize: fs(14),
       color: PAL_CSS.warmGold,
       stroke: '#000000',
       strokeThickness: 4,
@@ -134,7 +134,7 @@ export class HUDNew {
         const y = startY + i * BAR_GAP - 1;
         const label = this.scene.add.text(HUD_X + BAR_W + 6, y, '', {
           fontFamily: PIXEL_FONT,
-          fontSize: '12px',
+          fontSize: fs(7),
           color: PAL_CSS.ivory,
           stroke: '#000000',
           strokeThickness: 3,
@@ -150,7 +150,7 @@ export class HUDNew {
         const y = startY + i * BAR_GAP - 2;
         const nameLabel = this.scene.add.text(HUD_X, y - 14, bar.fullLabel, {
           fontFamily: PIXEL_FONT,
-          fontSize: '10px',
+          fontSize: fs(6),
           color: PAL_CSS.ivory,
           stroke: '#000000',
           strokeThickness: 3,
@@ -231,13 +231,41 @@ export class HUDNew {
     }
   }
 
+  private timerShaking = false;
+
   private updateTimer(): void {
     const start = store.s.gameStartTime;
-    if (!start) { this.timerText.setText('00:00'); return; }
-    const elapsed = Math.floor((Date.now() - start) / 1000);
-    const m = Math.floor(elapsed / 60);
-    const ss = elapsed % 60;
+    if (!start) { this.timerText.setText('15:00'); return; }
+
+    const remaining = store.remainingSeconds;
+    const m = Math.floor(remaining / 60);
+    const ss = remaining % 60;
     this.timerText.setText(`${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`);
+
+    // At ≤ 5 minutes remaining: turn red and shake
+    if (remaining <= 300) {
+      this.timerText.setColor('#FF4444');
+      this.timerText.setStroke('#660000', 4);
+      if (!this.timerShaking) {
+        this.timerShaking = true;
+        this.scene.tweens.add({
+          targets: this.timerText,
+          x: this.timerText.x - 3,
+          duration: 80,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+    } else {
+      this.timerText.setColor(PAL_CSS.warmGold);
+      this.timerText.setStroke('#000000', 4);
+      if (this.timerShaking) {
+        this.timerShaking = false;
+        this.scene.tweens.killTweensOf(this.timerText);
+        this.timerText.setX(DESIGN_W - HUD_X);
+      }
+    }
   }
 
   destroy(): void {

@@ -10,7 +10,7 @@
 import Phaser from 'phaser';
 import { DESIGN_W, DESIGN_H } from '../constants';
 import {
-  PAL, PAL_CSS, TEXT, UI, BTN, MODAL, drawPlaque, PIXEL_FONT,
+  PAL, PAL_CSS, TEXT, UI, BTN, MODAL, drawPlaque, PIXEL_FONT, fs,
 } from '../uiTheme';
 import { fxPop } from '../fx';
 import { sizeH } from '../spriteSize';
@@ -154,7 +154,7 @@ export class ModalManager {
       this.countdownValue = cfg.countdown;
       this.countdownText = this.scene.add.text(cx, nextY, `${this.countdownValue}`, {
         fontFamily: PIXEL_FONT,
-        fontSize: '42px',
+        fontSize: fs(28),
         color: PAL_CSS.danger,
         stroke: '#000000',
         strokeThickness: 4,

@@ -5,7 +5,7 @@
  */
 import Phaser from 'phaser';
 import { SCENE, DESIGN_W, DESIGN_H } from '../constants';
-import { TEXT, PIXEL_FONT, PAL_CSS } from '../uiTheme';
+import { TEXT, PIXEL_FONT, PAL_CSS, fs } from '../uiTheme';
 import { AudioManager } from '../audio/AudioManager';
 import { fxPop, fxSparkle } from '../fx';
 import { sizeH, MINI_CLOTHES_H } from '../spriteSize';
@@ -82,7 +82,7 @@ export class FoldingMinigame extends Phaser.Scene {
 
     // Close button
     const closeBtn = this.add.text(DESIGN_W - 60, 20, '✕', {
-      fontFamily: PIXEL_FONT, fontSize: '32px', color: PAL_CSS.danger,
+      fontFamily: PIXEL_FONT, fontSize: fs(20), color: PAL_CSS.danger,
       stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(30).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', () => this.exitMinigame(false));

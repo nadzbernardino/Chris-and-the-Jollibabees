@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_CSS, FONT_SIZES, SPACING } from '../config';
+import { fs } from '../uiTheme';
 
 export interface SpeechBubbleConfig {
   x: number;
@@ -34,7 +35,7 @@ export class SpeechBubble {
     let speakerHeight = 0;
     if (cfg.speaker) {
       const nameText = scene.add.text(0, 0, cfg.speaker, {
-        fontSize: '14px',
+        fontSize: fs(8),
         fontFamily: 'monospace',
         color: PALETTE_CSS.wood2,
       });

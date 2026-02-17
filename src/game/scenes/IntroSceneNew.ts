@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import { DESIGN_W, DESIGN_H, SCENE } from '../constants';
 import { store } from '../store/GameStoreNew';
-import { PAL_CSS, TEXT, UI, drawPlaque } from '../uiTheme';
+import { PAL_CSS, TEXT, UI, drawPlaque, fs } from '../uiTheme';
 import { AudioManager } from '../audio/AudioManager';
 
 export class IntroSceneNew extends Phaser.Scene {
@@ -32,13 +32,13 @@ export class IntroSceneNew extends Phaser.Scene {
     // Title
     this.add.text(DESIGN_W / 2, 160, 'BEEHIVE', {
       ...TEXT.title,
-      fontSize: '72px',
+      fontSize: fs(42),
     }).setOrigin(0.5).setDepth(2);
 
     // Subtitle
     this.add.text(DESIGN_W / 2, 260, 'Chris & the Jollibabees', {
       fontFamily: '"Press Start 2P", "Courier New", monospace',
-      fontSize: '20px',
+      fontSize: fs(11),
       color: PAL_CSS.warmGold,
       stroke: '#000000',
       strokeThickness: 4,
@@ -73,7 +73,7 @@ export class IntroSceneNew extends Phaser.Scene {
 
     const btnLabel = this.add.text(DESIGN_W / 2, btnY, 'Enter the Beehive', {
       ...TEXT.button,
-      fontSize: '24px',
+      fontSize: fs(14),
       color: PAL_CSS.gold,
     }).setOrigin(0.5).setDepth(3);
 

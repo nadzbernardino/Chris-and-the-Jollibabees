@@ -14,6 +14,7 @@ import { store } from '../store/GameStoreNew';
 import { JOLLIBABEES, DESIGN_H } from '../constants';
 import { showBubble } from './SpeechBubbleNew';
 import { sizeH, CHRIS_H, CHAR_Y } from '../spriteSize';
+import { fs } from '../uiTheme';
 
 const CHRIS_Y = () => CHAR_Y;
 const FOLLOWER_SPACING = 80;   // tighter so all 6 fit on screen with slight overlap
@@ -83,7 +84,7 @@ export class FollowerSystem {
       // Name label above (name ONLY — no subtitle)
       const label = this.scene.add.text(0, -img.displayHeight - 8, def.name, {
         fontFamily: '"Press Start 2P", "Courier New", monospace',
-        fontSize: '16px', color: '#FFE4B5',
+        fontSize: fs(9), color: '#FFE4B5',
         stroke: '#000000', strokeThickness: 3,
       }).setOrigin(0.5, 1);
 

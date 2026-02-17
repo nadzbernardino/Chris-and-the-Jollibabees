@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { SCENE, BG_ASSETS, ASSETS, DESIGN_W, DESIGN_H } from '../constants';
 import { generateAllAudio } from '../audio/ProceduralAudio';
+import { fs } from '../uiTheme';
 
 export class BootScene extends Phaser.Scene {
   private audioData: Record<string, string> = {};
@@ -20,7 +21,7 @@ export class BootScene extends Phaser.Scene {
 
     // Title
     const title = this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 80, 'BEEHIVE', {
-      fontSize: '64px',
+      fontSize: fs(36),
       fontFamily: '"Press Start 2P", "Courier New", monospace',
       color: '#F4C76A',
       stroke: '#000000',
@@ -29,7 +30,7 @@ export class BootScene extends Phaser.Scene {
 
     // Tap prompt
     const tapText = this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 40, '♫ Tap to Start ♫', {
-      fontSize: '24px',
+      fontSize: fs(14),
       fontFamily: '"Press Start 2P", "Courier New", monospace',
       color: '#E6C98B',
       stroke: '#000000',
@@ -75,7 +76,7 @@ export class BootScene extends Phaser.Scene {
     const bg = this.add.rectangle(cx, cy, barW, barH, 0x333333);
     const fill = this.add.rectangle(cx - barW / 2, cy, 0, barH - 4, 0xf4c76a).setOrigin(0, 0.5);
     const label = this.add.text(cx, cy - 40, 'Loading...', {
-      fontSize: '24px', fontFamily: '"Press Start 2P", "Courier New", monospace', color: '#F4C76A',
+      fontSize: fs(14), fontFamily: '"Press Start 2P", "Courier New", monospace', color: '#F4C76A',
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
 

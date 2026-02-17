@@ -61,6 +61,19 @@ export const PAL_CSS = {
   success:      '#6AB04C',
 } as const;
 
+// ─── MOBILE DETECTION ─────────────────────────────────────
+/** Detect mobile: small viewport or touch device with medium viewport */
+export const IS_MOBILE = typeof window !== 'undefined' &&
+  (window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1200));
+
+/** Mobile font multiplier — fonts scale up ~1.7x on mobile only */
+const MF = IS_MOBILE ? 1.7 : 1.0;
+
+/** Scale a base font size for mobile. Returns '##px' string. */
+export function fs(basePx: number): string {
+  return `${Math.round(basePx * MF)}px`;
+}
+
 // ─── TYPOGRAPHY ───────────────────────────────────────────
 // "Press Start 2P" — loaded via Google Fonts <link> in index.html.
 // Fallback chain keeps the game playable before the font loads.
@@ -70,7 +83,7 @@ export const TEXT = {
   /** Big title (intro screen, end screen) */
   title: {
     fontFamily: PIXEL_FONT,
-    fontSize: '64px',
+    fontSize: fs(36),
     color: PAL_CSS.gold,
     stroke: PAL_CSS.darkWood,
     strokeThickness: 8,
@@ -79,7 +92,7 @@ export const TEXT = {
   /** Section / modal title */
   heading: {
     fontFamily: PIXEL_FONT,
-    fontSize: '32px',
+    fontSize: fs(18),
     color: PAL_CSS.gold,
     stroke: '#000000',
     strokeThickness: 5,
@@ -88,7 +101,7 @@ export const TEXT = {
   /** Normal body text */
   body: {
     fontFamily: PIXEL_FONT,
-    fontSize: '22px',
+    fontSize: fs(13),
     color: PAL_CSS.ivory,
     stroke: '#000000',
     strokeThickness: 4,
@@ -98,17 +111,17 @@ export const TEXT = {
   /** Speech bubble text */
   bubble: {
     fontFamily: PIXEL_FONT,
-    fontSize: '20px',
+    fontSize: fs(12),
     color: PAL_CSS.darkText,
     lineSpacing: 8,
-    wordWrap: { width: 500 },
+    wordWrap: { width: IS_MOBILE ? 500 : 320 },
     align: 'center' as const,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 
   /** Button label */
   button: {
     fontFamily: PIXEL_FONT,
-    fontSize: '22px',
+    fontSize: fs(13),
     color: PAL_CSS.ivory,
     stroke: '#000000',
     strokeThickness: 4,
@@ -117,7 +130,7 @@ export const TEXT = {
   /** Small label (follower name, progress counter) */
   small: {
     fontFamily: PIXEL_FONT,
-    fontSize: '16px',
+    fontSize: fs(9),
     color: PAL_CSS.warmGold,
     stroke: '#000000',
     strokeThickness: 3,
@@ -126,7 +139,7 @@ export const TEXT = {
   /** HUD text (hearts, timer) */
   hud: {
     fontFamily: PIXEL_FONT,
-    fontSize: '28px',
+    fontSize: fs(16),
     color: PAL_CSS.heartRed,
     stroke: '#000000',
     strokeThickness: 5,
@@ -135,7 +148,7 @@ export const TEXT = {
   /** Minigame instruction header */
   instruction: {
     fontFamily: PIXEL_FONT,
-    fontSize: '24px',
+    fontSize: fs(14),
     color: PAL_CSS.warmGold,
     stroke: '#000000',
     strokeThickness: 5,
@@ -145,19 +158,19 @@ export const TEXT = {
 // ─── SPACING / SIZING ─────────────────────────────────────
 export const UI = {
   /** Pixel-rounded corner radius (keep small for 8-bit feel) */
-  radius: 12,
+  radius: IS_MOBILE ? 12 : 8,
   /** Inner padding inside panels/bubbles */
-  pad: 24,
+  pad: IS_MOBILE ? 24 : 16,
   /** Minimum mobile tap target (design-space px; at 1536 wide ≈ 44 CSS px) */
-  tapMin: 80,
+  tapMin: IS_MOBILE ? 80 : 64,
   /** Button dimensions */
-  btnW: 420,
-  btnH: 80,
+  btnW: IS_MOBILE ? 420 : 260,
+  btnH: IS_MOBILE ? 80 : 56,
   /** Modal overlay alpha */
   overlayAlpha: 0.6,
   /** Nav arrow size */
-  arrowW: 90,
-  arrowH: 120,
+  arrowW: IS_MOBILE ? 90 : 60,
+  arrowH: IS_MOBILE ? 120 : 84,
 } as const;
 
 // ─── BUTTON HELPERS ───────────────────────────────────────
@@ -204,11 +217,11 @@ export const BUBBLE = {
 export const MODAL = {
   panelFill: PAL.forestGreen,
   panelStroke: PAL.lightWood,
-  panelStrokeW: 5,
+  panelStrokeW: IS_MOBILE ? 5 : 4,
   innerFill: PAL.darkPine,      // optional inner inset
   overlayAlpha: 0.6,
-  width: 900,
-  height: 560,
+  width: IS_MOBILE ? 900 : 620,
+  height: IS_MOBILE ? 560 : 380,
 } as const;
 
 /**

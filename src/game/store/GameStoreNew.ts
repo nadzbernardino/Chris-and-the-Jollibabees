@@ -32,6 +32,8 @@ export interface GameState {
   /** Optional pickups found (one-time per game) */
   pickedUp: Record<string, boolean>;
   gameStartTime: number;            // Date.now() at game start
+  /** Accumulated bonus/penalty seconds for the overall 15-min timer */
+  bonusTimeSeconds: number;
   /** Bathroom gating: which category is active ('laundry'|'folding'|null) */
   bathroomActiveTask: 'laundry' | 'folding' | null;
 }
@@ -58,6 +60,7 @@ function createInitialState(): GameState {
     sleepUses: 0,
     pickedUp: {},
     gameStartTime: Date.now(),
+    bonusTimeSeconds: 0,
     bathroomActiveTask: null,
   };
 }
@@ -216,6 +219,21 @@ class GameStore {
   // ─── Timer ─────────────────────────────────────────────
   get elapsedSeconds(): number {
     return Math.floor((Date.now() - this.state.gameStartTime) / 1000);
+  }
+
+  /** Total game duration in seconds (base 900 + bonus) */
+  get totalGameSeconds(): number {
+    return 900 + this.state.bonusTimeSeconds;
+  }
+
+  /** Remaining seconds on the 15-min countdown */
+  get remainingSeconds(): number {
+    return Math.max(0, this.totalGameSeconds - this.elapsedSeconds);
+  }
+
+  /** Add (or subtract) bonus seconds to the overall timer */
+  addBonusSeconds(n: number): void {
+    this.state.bonusTimeSeconds += n;
   }
 
   // ─── All quests check ─────────────────────────────────

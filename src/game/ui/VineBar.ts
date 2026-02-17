@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_CSS, FONT_SIZES, SPACING } from '../config';
+import { fs } from '../uiTheme';
 
 export interface VineBarConfig {
   x: number;
@@ -85,7 +86,7 @@ export class VineBar {
 
     // Value text (right-aligned inside bar)
     this.valueText = scene.add.text(barX + barWidth - 4, 0, '', {
-      fontSize: '16px',
+      fontSize: fs(9),
       fontFamily: 'monospace',
       color: PALETTE_CSS.ivory,
     }).setOrigin(1, 0).setAlpha(0.8);
