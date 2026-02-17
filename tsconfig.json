@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"],
+  "exclude": [
+    "src/game/scenes/IntroScene.ts",
+    "src/game/scenes/WorldMapScene.ts",
+    "src/game/scenes/LevelScene.ts",
+    "src/game/scenes/MarketScene.ts",
+    "src/game/scenes/SleepScene.ts",
+    "src/game/scenes/FinalPickupScene.ts",
+    "src/game/scenes/EndingScene.ts",
+    "src/game/scenes/GameOverScene.ts",
+    "src/game/scenes/PaletteDemoScene.ts",
+    "src/game/scenes/DevUIScene.ts",
+    "src/game/ui/HUD.ts",
+    "src/game/ui/HUDPanel.ts",
+    "src/game/ui/IconCounter.ts",
+    "src/game/ui/JollibabeeSpeech.ts",
+    "src/game/ui/VineBar.ts",
+    "src/game/ui/WoodButton.ts",
+    "src/game/store/GameStore.ts",
+    "src/game/store/resetRun.ts",
+    "src/game/store/reducers/*.ts",
+    "src/game/__tests__/**"
+  ]
+}

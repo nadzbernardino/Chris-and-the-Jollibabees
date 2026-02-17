@@ -1,0 +1,29 @@
+/* ═══════════════════════════════════════════════════════════
+   Pixel-perfect rendering — disable all browser smoothing
+   ═══════════════════════════════════════════════════════════ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0e0e0e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* CSS image-rendering: pixelated keeps pixels sharp when the
+   canvas is scaled by the browser (zoom, CSS transforms, etc.) */
+#game {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;          /* Firefox fallback */
+  -ms-interpolation-mode: nearest-neighbor; /* IE/Edge legacy */
+  display: block;
+  max-width: 100vw;
+  max-height: 100vh;
+}

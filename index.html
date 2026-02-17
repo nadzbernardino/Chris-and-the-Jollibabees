@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Woodland Preparation Quest</title>
+  <!-- Pixel font: Press Start 2P from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1F3B2C; }
+    #game { width: 100%; height: 100%; }
+    /* Browser-level nearest-neighbor — belts-and-suspenders with Phaser pixelArt:true */
+    canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <script>
+    // Catch runtime errors and display on-screen for debugging
+    window.onerror = function(msg, src, line, col, err) {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:12px;font:14px monospace;z-index:99999;white-space:pre-wrap';
+      d.textContent = msg + '\n' + (src||'') + ':' + line + ':' + col + '\n' + (err&&err.stack||'');
+      document.body.appendChild(d);
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:12px;font:14px monospace;z-index:99999;white-space:pre-wrap';
+      d.textContent = 'Unhandled rejection: ' + (e.reason&&e.reason.stack||e.reason||e);
+      document.body.appendChild(d);
+    });
+  </script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

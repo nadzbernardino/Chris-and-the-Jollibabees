@@ -1,0 +1,34 @@
+{
+  "balcony_garden_bg.png": {
+    "w": 1536,
+    "h": 1024
+  },
+  "bathroom_bg.png": {
+    "w": 1536,
+    "h": 1024
+  },
+  "bedroom_bg.png": {
+    "w": 1536,
+    "h": 1024
+  },
+  "kitchen_sink_dishes_bg.png": {
+    "w": 1536,
+    "h": 1024
+  },
+  "kitchen_stove_bg.png": {
+    "w": 1536,
+    "h": 1024
+  },
+  "living_room_bg.png": {
+    "w": 1536,
+    "h": 1024
+  },
+  "workstation_bg.png": {
+    "w": 1536,
+    "h": 1024
+  },
+  "beehive_home.png": {
+    "w": 1536,
+    "h": 1024
+  }
+}
