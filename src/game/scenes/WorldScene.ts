@@ -1603,7 +1603,7 @@ export class WorldScene extends Phaser.Scene {
     // Coffee on the desk — same effect as kitchen coffee
     const OFFICE_COFFEE_H = 140;
     const officeCoffee = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 50, 'coffee',
+      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 105, 'coffee',
     ).setDepth(10).setInteractive({ useHandCursor: true });
     sizeH(officeCoffee, OFFICE_COFFEE_H);
 
@@ -2092,7 +2092,7 @@ export class WorldScene extends Phaser.Scene {
     if (!store.hasPickedUp('remote')) {
       const PICKUP_H = 308;
       const remoteImg = this.add.image(
-        this.rx(room, ROOM_WIDTH * 0.20), Math.round(WALL_Y * 0.7), 'remote',
+        this.rx(room, ROOM_WIDTH * 0.20), Math.round(WALL_Y * 0.7 * 1.15), 'remote',
       ).setDepth(10).setInteractive({ useHandCursor: true });
       sizeH(remoteImg, PICKUP_H);
 
@@ -2225,12 +2225,13 @@ export class WorldScene extends Phaser.Scene {
     sizeH(this.r6_bonsaiPretty, PROP_L);
 
     // Bucket — always visible (doesn't disappear after watering)
+    const BUCKET_H = Math.round(PROP_M * 0.2);
     this.r6_bucket = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.25), FLOOR_Y - PROP_M / 2, 'bucket',
+      this.rx(room, ROOM_WIDTH * 0.25), FLOOR_Y - BUCKET_H / 2, 'bucket',
     ).setDepth(10)
       .setInteractive({ useHandCursor: true });
-    sizeH(this.r6_bucket, PROP_M);
-    drawShadow(this, this.r6_bucket.x, FLOOR_Y, PROP_M * 0.5);
+    sizeH(this.r6_bucket, BUCKET_H);
+    drawShadow(this, this.r6_bucket.x, FLOOR_Y, BUCKET_H * 0.5);
 
     // Step 1: tap bucket to pick it up
     this.r6_bucket.on('pointerdown', () => {
@@ -2460,15 +2461,21 @@ export class WorldScene extends Phaser.Scene {
   private setupRoom7_ExitDoor(): void {
     const room = 7;
 
+    // Door in beehive_home.png is the small arched door at bottom-center-right
+    // Approx position on 1536x1024 canvas: X ~780, Y ~820, size ~120x160
+    const doorX = this.rx(room, ROOM_WIDTH * 0.51);
+    const doorY = 810;
+    const doorW = 130;
+    const doorH = 170;
+
     this.r7_doorZone = this.add.rectangle(
-      this.rx(room, ROOM_WIDTH / 2), DESIGN_H / 2 - 60,
-      250, 360, 0x000000, 0,
+      doorX, doorY,
+      doorW, doorH, 0x000000, 0,
     ).setInteractive({ useHandCursor: true }).setDepth(5);
-    this.r7_doorZone.setStrokeStyle(3, PAL.gold, 0.5);
 
     this.r7_doorLabel = this.add.text(
-      this.rx(room, ROOM_WIDTH / 2), DESIGN_H / 2 + 150,
-      '🚪 Exit Door', { ...TEXT.heading },
+      doorX, doorY - doorH / 2 - 20,
+      '🚪 Exit', { ...TEXT.small },
     ).setOrigin(0.5).setDepth(10);
 
     this.r7_doorZone.on('pointerdown', () => {
