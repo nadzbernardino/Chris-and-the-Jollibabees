@@ -10,12 +10,7 @@ export class IntroScene extends Phaser.Scene {
   create(): void {
 
     this.cameras.main.setBackgroundColor(PALETTE.forest1);
-    // Try to unlock audio context immediately (desktop/modern browsers)
-    try {
-      const audio = new AudioManager(this);
-      audio.unlockAudio();
-      audio.startIntroMusic();
-    } catch (_) { /* audio may still be locked on mobile until tap */ }
+    // Only create AudioManager and unlock audio on user gesture (see below)
 
     // Subtle floating dust particles
     this.addDustParticles();
@@ -83,11 +78,12 @@ export class IntroScene extends Phaser.Scene {
     btnBg.on('pointerover', () => btnBg.setFillStyle(PALETTE.wood2));
     btnBg.on('pointerout', () => btnBg.setFillStyle(PALETTE.wood1));
     btnBg.on('pointerdown', () => {
+
       // Unlock audio on first interaction (mobile policy)
-      const audio = new AudioManager(this);
-      audio.unlockAudio();
-      audio.stopIntroMusic();
-      audio.buttonTap();
+      if (!this.audioMgr) this.audioMgr = new AudioManager(this);
+      this.audioMgr.unlockAudio();
+      this.audioMgr.stopIntroMusic();
+      this.audioMgr.buttonTap();
 
       this.cameras.main.fadeOut(400, 0x1f, 0x3b, 0x2c);
       this.cameras.main.once('camerafadeoutcomplete', () => {
