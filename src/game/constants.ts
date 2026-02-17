@@ -46,7 +46,7 @@ export const ROOM_ORDER: string[] = [
 // ═══════════════════════════════════════════════════════════
 //  BACKGROUND ASSET KEYS → paths
 // ═══════════════════════════════════════════════════════════
-const BG = 'src/assets/backgrounds/standard_1536x1024/';
+const BG = 'assets/backgrounds/standard_1536x1024/';
 
 export const BG_ASSETS: Record<string, string> = {
   beehive_home:      `${BG}beehive_home.png`,
@@ -58,7 +58,7 @@ export const BG_ASSETS: Record<string, string> = {
   bathroom_bg:       `${BG}bathroom_bg.png`,
   balcony_garden_bg: `${BG}balcony_garden_bg.png`,
   exit_door_room_bg: `${BG}beehive_home.png`,
-  bedroom_bg_original: 'src/assets/backgrounds/original/bedroom_bg.png',
+  bedroom_bg_original: 'assets/backgrounds/original/bedroom_bg.png',
   carpet:            `${BG}carpet.png`,
   wood_floor:        `${BG}wood_floor.png`,
 };
@@ -81,9 +81,9 @@ export const SCENE_TO_BG: Record<string, string> = {
 // ═══════════════════════════════════════════════════════════
 //  PROP / CHARACTER ASSET KEYS → paths
 // ═══════════════════════════════════════════════════════════
-const PROP = 'src/assets/props/';
-const CHAR = 'src/assets/characters/';
-const JB   = 'src/assets/jollibabees/';
+const PROP = 'assets/props/';
+const CHAR = 'assets/characters/';
+const JB   = 'assets/jollibabees/';
 
 export const ASSETS: Record<string, string> = {
   // Characters

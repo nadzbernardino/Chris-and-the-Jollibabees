@@ -56,7 +56,7 @@ export const AUDIO_KEYS = {
 } as const;
 
 /** Base path for audio files — files go here */
-export const AUDIO_PATH = 'src/assets/audio/';
+export const AUDIO_PATH = 'assets/audio/';
 
 export class AudioManager {
   private scene: Phaser.Scene;
