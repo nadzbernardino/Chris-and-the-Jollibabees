@@ -9,6 +9,9 @@ export class EndingScene extends Phaser.Scene {
   }
 
   create(): void {
+      // Play ending background music
+      if (!this.audio) this.audio = new (require('../audio/AudioManager').AudioManager)(this);
+      this.audio.playEndingMusic();
     this.cameras.main.setBackgroundColor(PALETTE.forest1);
     this.cameras.main.fadeIn(600, 0x1f, 0x3b, 0x2c);
 

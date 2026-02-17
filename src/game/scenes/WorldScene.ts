@@ -48,6 +48,8 @@ const TOUR_ROOMS = [...ROOM_ORDER].reverse().filter(k => k !== SCENE.EXIT_DOOR);
 // ═══════════════════════════════════════════════════════════
 
 export class WorldScene extends Phaser.Scene {
+    // ── Overall game timer ──────────────────────────────
+    private overallGameTimer?: Phaser.Time.TimerEvent;
   // Track last time the dishes block bubble was shown
   private _dishesBlockBubbleShown: number = 0;
 
@@ -106,12 +108,13 @@ export class WorldScene extends Phaser.Scene {
   private r3_darmeshIgnoreCount = 0;
   private r3_whaleCoinTimer?: Phaser.Time.TimerEvent;
   private r3_doomScrollCount = 0;
+  private darmeshWorkCycles = 0;
   private darmeshRecallTimer?: Phaser.Time.TimerEvent;
 
   // ── Room 1: Exercise ─────────────────────────────────
   private r1_barbell!: Phaser.GameObjects.Image;
   private r1_exercising = false;
-  private r1_hasExercised = false;  // one-time only
+  private r1_exerciseCount = 0;  // max 2 before game over on 3rd
 
   // ── Drink cooldowns ─────────────────────────────────
   private lastDrinkTime = 0;  // timestamp of last drink (coffee or whey)
@@ -137,6 +140,13 @@ export class WorldScene extends Phaser.Scene {
   private r7_doorZone!: Phaser.GameObjects.Rectangle;
   private r7_doorLabel!: Phaser.GameObjects.Text;
 
+  // ── Confidence tracking ─────────────────────────────
+  private lastIntegrityThreshold = 2;  // starts at 50 → threshold index 2 (0/20/40/60/80)
+  private totalTasksCompleted = 0;     // for fatigue penalty
+
+  // ── Wine tracking ──────────────────────────────────
+  private wineClickCount = 0;
+
   // ── Ending state ─────────────────────────────────────
   private endingActive = false;
   private gameOverTriggered = false;
@@ -155,9 +165,16 @@ export class WorldScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════
 
   create(): void {
+        // Start overall game timer (15 minutes)
+        this.overallGameTimer = this.time.delayedCall(900000, () => {
+          if (!this.endingActive && !this.gameOverTriggered && !store.allQuestsComplete()) {
+            this.triggerTimeWastedGameOver('Time is up! You didn\'t finish everything in 15 minutes.');
+          }
+        });
     // Stop intro music if still playing (uses shared Phaser sound manager)
     const audioMgr = new AudioManager(this);
     audioMgr.stopIntroMusic();
+    audioMgr.playGameplayMusic();
 
     // ── Reset runtime state ─────────────────────────────
     this.currentRoom = 0;
@@ -176,11 +193,15 @@ export class WorldScene extends Phaser.Scene {
     this.r3_darmeshAnswered = false;
     this.r3_darmeshIgnoreCount = 0;
     this.r3_doomScrollCount = 0;
+    this.darmeshWorkCycles = 0;
     if (this.r3_whaleCoinTimer) { this.r3_whaleCoinTimer.destroy(); this.r3_whaleCoinTimer = undefined; }
     if (this.darmeshRecallTimer) { this.darmeshRecallTimer.destroy(); this.darmeshRecallTimer = undefined; }
     this.r1_exercising = false;
-    this.r1_hasExercised = false;
+    this.r1_exerciseCount = 0;
     this.lastDrinkTime = 0;
+    this.lastIntegrityThreshold = 2;  // integrity starts at 50 → threshold 2
+    this.totalTasksCompleted = 0;
+    this.wineClickCount = 0;
     this.mobileLeft = false;
     this.mobileRight = false;
     this.r2_trashItems = [];
@@ -370,6 +391,9 @@ export class WorldScene extends Phaser.Scene {
 
     // Low energy penalty: slow Chris when energy < 30
     this.applyEnergyPenalty();
+
+    // Confidence chunk loss: if integrity drops a 20-point bracket → lose heart
+    this.checkIntegrityChunkLoss();
   }
 
   // ═══════════════════════════════════════════════════════
@@ -651,6 +675,18 @@ export class WorldScene extends Phaser.Scene {
         this.startRoomOvertimeTimer();
       });
     }
+  }
+
+  /** Add bonus time to the overall 15-minute game timer */
+  private addBonusTime(seconds: number): void {
+    if (!this.overallGameTimer) return;
+    const remaining = this.overallGameTimer.getRemaining();
+    this.overallGameTimer.destroy();
+    this.overallGameTimer = this.time.delayedCall(remaining + seconds * 1000, () => {
+      if (!this.endingActive && !this.gameOverTriggered && !store.allQuestsComplete()) {
+        this.triggerTimeWastedGameOver('Time is up! You didn\'t finish everything in 15 minutes.');
+      }
+    });
   }
 
   // ═══════════════════════════════════════════════════════
@@ -950,30 +986,17 @@ export class WorldScene extends Phaser.Scene {
     sizeH(this.r1_water, DRINK_H);
     drawShadow(this, this.r1_water.x, DRINK_Y + DRINK_H / 2, DRINK_H * 0.7);
 
-    if (store.s.waterUses >= 2) this.r1_water.setTint(0x666666);
-
     this.r1_water.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
       if (!this.canConsume()) return;
-      if (store.useWater()) {
-        this.lastDrinkTime = Date.now();
-        // Water: +1 Heart, +8 Energy
-        store.addHeart(1);
-        store.addEnergy(8);
-        this.hud.refresh();
-        fxHeartFlash(this, true);
-        this.audio.bloop();
-        fxSparkle(this, this.r1_water.x, this.r1_water.y, 8, 40);
-        if (store.s.waterUses === 1) {
-          this.bubbleMgr.chrisSay('💧 +1 ❤️ +8 ⚡', 2500);
-          this.r1_water.setAlpha(0.7);
-        } else {
-          this.bubbleMgr.chrisSay('💧 Stay hydrated! +1 ❤️ +8 ⚡', 2500);
-          this.r1_water.setTint(0x666666);
-        }
-      } else {
-        this.bubbleMgr.chrisSay('No more water left.', 2000);
-      }
+      this.lastDrinkTime = Date.now();
+      store.addHeart(1);
+      store.addEnergy(8);
+      this.hud.refresh();
+      fxHeartFlash(this, true);
+      this.audio.bloop();
+      fxSparkle(this, this.r1_water.x, this.r1_water.y, 8, 40);
+      this.bubbleMgr.chrisSay('💧 Stay hydrated! +1 ❤️ +8 ⚡', 2500);
     });
 
     // Energy drink consumable — beside water
@@ -1039,28 +1062,32 @@ export class WorldScene extends Phaser.Scene {
     }
 
 
-    // Wine — beside whey (same height), loses heart on drink
-    const wineImg = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.93), DRINK_Y, 'wine',
-    ).setDepth(10).setInteractive({ useHandCursor: true });
-    sizeH(wineImg, DRINK_H);
-    drawShadow(this, wineImg.x, DRINK_Y + DRINK_H / 2, DRINK_H * 0.7);
+    // Wine — stays visible, each click loses 1 heart, 3 clicks = game over
+    {
+      const wineImg = this.add.image(
+        this.rx(room, ROOM_WIDTH * 0.93), DRINK_Y, 'wine',
+      ).setDepth(10).setInteractive({ useHandCursor: true });
+      sizeH(wineImg, DRINK_H);
+      drawShadow(this, wineImg.x, DRINK_Y + DRINK_H / 2, DRINK_H * 0.7);
 
-    wineImg.on('pointerdown', () => {
-      if (this.currentRoom !== room || this.modal.isOpen) return;
-      if (Date.now() - this.lastDrinkTime < 20000) {
-        this.showChrisBubble('Easy... let that one settle first.');
-        return;
-      }
-      this.lastDrinkTime = Date.now();
-      // Wine: lose energy
-      store.addEnergy(-15);
-      store.addIntegrity(-3);
-      this.hud.refresh();
-      fxOuchFlicker(this);
-      this.audio.heartLose();
-      this.bubbleMgr.chrisSay('🍷 That went straight to my head... -15 ⚡', 2500);
-    });
+      wineImg.on('pointerdown', () => {
+        if (this.currentRoom !== room || this.modal.isOpen) return;
+        this.wineClickCount++;
+        store.removeHeart(1);
+        store.addIntegrity(-3);
+        this.hud.refresh();
+        fxOuchFlicker(this);
+        this.audio.heartLose();
+
+        if (this.wineClickCount >= 3) {
+          this.triggerTimeWastedGameOver('Drank too much wine and got dizzy... 🍷🥴');
+          return;
+        }
+        this.bubbleMgr.chrisSay(`🍷 Ugh... that was a mistake. -1 ❤️ (${this.wineClickCount}/3)`, 3000);
+        this.checkLowHeart();
+        this.checkGameOver();
+      });
+    }
 
     // Burger — beside whey (same height/row)
     const burgerImg = this.add.image(
@@ -1129,9 +1156,8 @@ export class WorldScene extends Phaser.Scene {
     this.r1_barbell.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
       if (this.r1_exercising) return;
-      // One-time only
-      if (this.r1_hasExercised) {
-        this.showChrisBubble('Already exercised. One session is enough!');
+      if (this.r1_exerciseCount >= 3) {
+        this.showChrisBubble('No more exercise... too much time wasted!');
         return;
       }
       // Need at least 20 energy to exercise
@@ -1147,11 +1173,11 @@ export class WorldScene extends Phaser.Scene {
 
   /** Market modal — spend diamonds on items */
   private showMarketModal(): void {
-    const items: { label: string; cost: number; available: boolean; action: () => void }[] = [
+    const items: { label: string; cost: number; canBuy: () => boolean; action: () => void }[] = [
       {
         label: `☕ Coffee (5💎) – Energy +10`,
         cost: 5,
-        available: store.s.diamonds >= 5,
+        canBuy: () => store.s.diamonds >= 5,
         action: () => {
           store.addDiamonds(-5);
           store.addEnergy(10);
@@ -1161,9 +1187,9 @@ export class WorldScene extends Phaser.Scene {
         },
       },
       {
-        label: `�️ Grocery (8💎) – Prep +8, Energy +5`,
+        label: `🛍️ Grocery (8💎) – Prep +8, Energy +5`,
         cost: 8,
-        available: store.s.diamonds >= 8,
+        canBuy: () => store.s.diamonds >= 8,
         action: () => {
           store.addDiamonds(-8);
           store.addPrep(8);
@@ -1173,9 +1199,9 @@ export class WorldScene extends Phaser.Scene {
         },
       },
       {
-        label: `�💐 Flowers (10💎) – Prep +5, Integrity +5`,
+        label: `💐 Flowers (10💎) – Prep +5, Integrity +5`,
         cost: 10,
-        available: store.s.diamonds >= 10 && !store.s.hasFlowers,
+        canBuy: () => store.s.diamonds >= 10 && !store.s.hasFlowers,
         action: () => {
           store.addDiamonds(-10);
           store.addPrep(5);
@@ -1188,7 +1214,7 @@ export class WorldScene extends Phaser.Scene {
       {
         label: `💍 Ring (25💎) – Prep +10, Integrity +10`,
         cost: 25,
-        available: store.s.diamonds >= 25 && !store.s.hasRing,
+        canBuy: () => store.s.diamonds >= 25 && !store.s.hasRing,
         action: () => {
           store.addDiamonds(-25);
           store.addPrep(10);
@@ -1199,18 +1225,29 @@ export class WorldScene extends Phaser.Scene {
           this.showChrisBubble('This is the one. 💍');
         },
       },
+      {
+        label: `🚚 Rush Delivery (6💎) – Bonus Time +60s`,
+        cost: 6,
+        canBuy: () => store.s.diamonds >= 6,
+        action: () => {
+          store.addDiamonds(-6);
+          this.addBonusTime(60);
+          this.hud.refresh();
+          this.showChrisBubble('Delivery coming! +60s bonus time! 🚚');
+        },
+      },
     ];
 
-    // Build button array for the modal
+    // Build button array — check canBuy() dynamically in callback
     const buttons = items.map(item => ({
-      label: item.available ? item.label : `${item.label} (need ${item.cost}💎)`,
+      label: item.label,
       callback: () => {
-        if (item.available) {
+        if (item.canBuy()) {
           this.audio.marketPurchase();
           item.action();
         } else {
           this.audio.thunk();
-          this.showChrisBubble('Not enough diamonds...');
+          this.showChrisBubble(`Not enough diamonds... need ${item.cost}💎`);
         }
       },
     }));
@@ -1312,7 +1349,7 @@ export class WorldScene extends Phaser.Scene {
       this.chris.setVisible(true);
       this.followers.show();
       this.r1_exercising = false;
-      this.r1_hasExercised = true;
+      this.r1_exerciseCount++;
       // Show barbell again
       if (this.r1_barbell) this.r1_barbell.setVisible(true);
 
@@ -1335,10 +1372,22 @@ export class WorldScene extends Phaser.Scene {
         this.bubbleMgr.jbSayRandom('Oops, not enough time to clean the house!', 3000);
       });
 
-      // Grey out barbell (one-time only)
-      this.r1_barbell.setTint(0x666666);
-      barbellLabel.setText('🏋️ Done');
-      barbellLabel.setColor('#888888');
+      // Check if exercised too much — 3rd time = game over
+      if (this.r1_exerciseCount >= 3) {
+        this.r1_barbell.setTint(0x666666);
+        barbellLabel.setText('🏋️ Done');
+        barbellLabel.setColor('#888888');
+        this.time.delayedCall(3000, () => {
+          this.triggerTimeWastedGameOver('You exercised too much and ran out of time to do all the chores!');
+        });
+        return;
+      }
+
+      // Show exercise count on label
+      barbellLabel.setText(`🏋️ ${this.r1_exerciseCount}/2`);
+      if (this.r1_exerciseCount >= 2) {
+        barbellLabel.setColor('#FF8888');
+      }
 
       // Jollibabee reactions — specific characters
       this.time.delayedCall(800, () => {
@@ -1501,6 +1550,7 @@ export class WorldScene extends Phaser.Scene {
     const room = 3;
     const roomKey = SCENE.OFFICE;
     const workDone = store.isTaskDone(roomKey, 'work');
+    this.darmeshWorkCycles = 0;
 
     // Phone → Doom Scroll trigger (on table, 30% smaller)
     const PHONE_H = 98;
@@ -1520,7 +1570,7 @@ export class WorldScene extends Phaser.Scene {
     // Coffee on the desk — same effect as kitchen coffee
     const OFFICE_COFFEE_H = 140;
     const officeCoffee = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 60, 'coffee',
+      this.rx(room, ROOM_WIDTH * 0.75), TABLE_Y - 90, 'coffee',
     ).setDepth(10).setInteractive({ useHandCursor: true });
     sizeH(officeCoffee, OFFICE_COFFEE_H);
 
@@ -1579,6 +1629,10 @@ export class WorldScene extends Phaser.Scene {
     this.r3_deskZone.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
       if (store.isTaskDone(roomKey, 'work')) return;
+      if (this.darmeshWorkCycles >= 5) {
+        this.showChrisBubble('Darmesh is satisfied. No more work calls!');
+        return;
+      }
 
       this.workCount++;
       this.r3_progressText.setText(`${this.workCount}/6`);
@@ -1599,9 +1653,12 @@ export class WorldScene extends Phaser.Scene {
         store.addDiamonds(3);
         this.trySpawnJollibabee(roomKey);
         this.showTaskComplete(roomKey);
-
-        // Schedule Darmesh to call again and reset the work quest
-        this.scheduleDarmeshWorkReset();
+        this.darmeshWorkCycles = (this.darmeshWorkCycles || 0) + 1;
+        if (this.darmeshWorkCycles < 5) {
+          this.scheduleDarmeshWorkReset();
+        } else {
+          this.showChrisBubble('Darmesh is satisfied. No more work calls!');
+        }
       }
     });
 
@@ -1697,12 +1754,12 @@ export class WorldScene extends Phaser.Scene {
     ).setDepth(10).setVisible(false);
     sizeH(this.r4_bedChris, BED_H);
 
-    if (store.s.sleepUses >= 2) this.r4_bed.setTint(0x666666);
+    if (store.s.sleepUses >= 3) this.r4_bed.setTint(0x666666);
     else if (sleepDone) this.r4_bed.setAlpha(0.8);
 
     this.r4_bed.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
-      if (store.s.sleepUses >= 2) {
+      if (store.s.sleepUses >= 3) {
         this.showChrisBubble('Can\'t sleep anymore. Too much to do!');
         return;
       }
@@ -1768,13 +1825,22 @@ export class WorldScene extends Phaser.Scene {
         store.addHeart(1);        // +1 heart from rest
         store.s.hasSlept = true;  // Stops heart drain
         this.showChrisBubble('Zzz... that was nice! ⚡100 💎-3');
+      } else if (store.s.sleepUses >= 3) {
+        // Third nap — too much sleeping, game over
+        store.s.energy = Math.min(100, store.s.energy + 30);
+        this.hud.refresh();
+        this.showChrisBubble('Zzz... just five more minutes...');
+        this.r4_bed.setTint(0x666666);
+        this.time.delayedCall(2000, () => {
+          this.triggerTimeWastedGameOver('You slept too much and ran out of time to do all the chores!');
+        });
+        return;
       } else {
         // Second nap: reduced rewards
         store.s.energy = Math.min(100, store.s.energy + 50);
         store.addPrep(5);
         store.addHeart(1);
         this.showChrisBubble('A quick power nap. ⚡+50 💎-3');
-        this.r4_bed.setTint(0x666666);  // fully greyed out
       }
 
       this.hud.refresh();
@@ -1943,7 +2009,7 @@ export class WorldScene extends Phaser.Scene {
     if (!store.hasPickedUp('remote')) {
       const PICKUP_H = 308;
       const remoteImg = this.add.image(
-        this.rx(room, ROOM_WIDTH * 0.20), FLOOR_Y - PICKUP_H / 2, 'remote',
+        this.rx(room, ROOM_WIDTH * 0.20), FLOOR_Y - PICKUP_H / 2 - 80, 'remote',
       ).setDepth(10).setInteractive({ useHandCursor: true });
       sizeH(remoteImg, PICKUP_H);
 
@@ -2624,6 +2690,13 @@ export class WorldScene extends Phaser.Scene {
   private showDoomScroll(): void {
     if (this.modal.isOpen || this.endingActive) return;
     this.audio.doomScrollOpen();
+    this.r3_doomScrollCount++;
+
+    // Too many phone opens = game over (5 total)
+    if (this.r3_doomScrollCount >= 5) {
+      this.triggerTimeWastedGameOver('Too much doom scrolling! You wasted all your time on the phone.');
+      return;
+    }
 
     // Pick a random phone screenshot (13-28)
     const photoNum = Phaser.Math.Between(13, 28);
@@ -2640,18 +2713,22 @@ export class WorldScene extends Phaser.Scene {
         {
           label: '📱 Scroll More',
           callback: () => {
-            // Scroll: Integrity -5, Timer -8s (per CLAUDE.md spec)
+            // Scroll: Integrity -5, Timer -20s (heavy penalty)
             store.addIntegrity(-5);
-            this.speedUpOvertimeTimer(8);
+            this.speedUpOvertimeTimer(20);
+            // Check if timer is out after losing time
+            if (this.roomOvertimeTimer && this.roomOvertimeTimer.getRemaining() <= 0) {
+              this.triggerTimeWastedGameOver('Oops, not enough time to clean the house!');
+              return;
+            }
             this.hud.refresh();
             fxOuchFlicker(this);
             this.audio.heartLose();
-            this.showChrisBubble('Can\'t stop scrolling... -5 Integrity 🕐-8s');
+            this.showChrisBubble('Can\'t stop scrolling... -5 Integrity 🕐-20s');
             this.time.delayedCall(2500, () => {
               this.bubbleMgr.jbSayRandom('Oops, not enough time to clean the house!', 3000);
             });
             this.jbReactToEvent('scroll');
-            this.r3_doomScrollCount++;
             // Immediately show another doom scroll with a different photo
             this.time.delayedCall(500, () => {
               if (!this.endingActive && this.currentRoom === currentRoomWhenOpened) {
@@ -2664,13 +2741,17 @@ export class WorldScene extends Phaser.Scene {
         {
           label: '✖ Close Phone',
           callback: () => {
-            // Close: Integrity +1, Prep +2, Diamonds +1
+            // Close: Integrity +1 but still loses time 🕐-10s
             store.addIntegrity(1);
-            store.addPrep(2);
-            store.addDiamonds(1);
+            this.speedUpOvertimeTimer(10);
+            // Check if timer is out after losing time
+            if (this.roomOvertimeTimer && this.roomOvertimeTimer.getRemaining() <= 0) {
+              this.triggerTimeWastedGameOver('Oops, not enough time to clean the house!');
+              return;
+            }
             this.hud.refresh();
             this.audio.popupClose();
-            this.showChrisBubble('Good choice. +1 Integrity, +2 Prep, +1 💎');
+            this.showChrisBubble('Put it down... but lost time. +1 Integrity, 🕐-10s');
             this.jbReactToEvent('close_phone');
           },
           color: 0x336633,
@@ -2835,6 +2916,37 @@ export class WorldScene extends Phaser.Scene {
     store.addIntegrity(3);
     this.hud.refresh();
     this.audio.taskComplete();
+
+    // Fatigue: every 3 tasks completed = lose 1 heart
+    this.totalTasksCompleted++;
+    if (this.totalTasksCompleted % 3 === 0) {
+      store.removeHeart(1);
+      this.hud.refresh();
+      fxOuchFlicker(this);
+      this.audio.heartLose();
+      this.bubbleMgr.chrisSay('Getting tired... -1 ❤️', 2500);
+      this.time.delayedCall(800, () => {
+        this.bubbleMgr.jbSayRandom('Dadibee, are you okay?', 2500);
+      });
+      this.checkLowHeart();
+      this.checkGameOver();
+    }
+  }
+
+  /** Check if integrity dropped below a 20-point threshold → lose a heart */
+  private checkIntegrityChunkLoss(): void {
+    const threshold = Math.floor(store.s.integrity / 20);  // 0..5
+    if (threshold < this.lastIntegrityThreshold) {
+      // Dropped a chunk — lose 1 heart
+      store.removeHeart(1);
+      this.hud.refresh();
+      fxOuchFlicker(this);
+      this.audio.heartLose();
+      this.bubbleMgr.chrisSay('Confidence dropping... -1 ❤️', 2500);
+      this.checkLowHeart();
+      this.checkGameOver();
+    }
+    this.lastIntegrityThreshold = threshold;
   }
 
   private trySpawnJollibabee(roomKey: string): void {
@@ -3007,6 +3119,46 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  /** Game over triggered by wasting too much time (sleep 3x or exercise 3x) */
+  private triggerTimeWastedGameOver(reason: string): void {
+    if (this.gameOverTriggered) return;
+    this.gameOverTriggered = true;
+    this.audio.gameOver();
+    this.audio.stopAmbient();
+
+    const blocker = this.add.rectangle(
+      DESIGN_W / 2, DESIGN_H / 2, DESIGN_W, DESIGN_H, 0x000000, 0.85,
+    ).setDepth(950).setInteractive().setScrollFactor(0);
+
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 100, 'GAME OVER', {
+      fontFamily: PIXEL_FONT, fontSize: '36px', color: '#FF4444',
+      stroke: '#000000', strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
+
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 20, reason, {
+      fontFamily: PIXEL_FONT, fontSize: '11px', color: PAL_CSS.ivory,
+      stroke: '#000000', strokeThickness: 3,
+      wordWrap: { width: 500 },
+      align: 'center',
+    }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
+
+    const retryBg = this.add.rectangle(
+      DESIGN_W / 2, DESIGN_H / 2 + 80, UI.btnW, UI.btnH, PAL.wood,
+    ).setStrokeStyle(3, PAL.darkWood)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(960).setScrollFactor(0);
+
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 80, '🔄 Try Again', {
+      fontFamily: PIXEL_FONT, fontSize: '14px', color: PAL_CSS.gold,
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(961).setScrollFactor(0);
+
+    retryBg.on('pointerdown', () => {
+      store.reset();
+      this.scene.start(SCENE.INTRO);
+    });
+  }
+
   // ═══════════════════════════════════════════════════════
   //  ENDING SEQUENCE
   // ═══════════════════════════════════════════════════════
@@ -3014,6 +3166,8 @@ export class WorldScene extends Phaser.Scene {
   private async startEndingSequence(): Promise<void> {
     this.endingActive = true;
     this.audio.stopAmbient();
+    this.audio.stopGameplayMusic();
+    this.audio.playEndingMusic();
 
     // Stop movement
     const body = this.chris.body as Phaser.Physics.Arcade.Body;

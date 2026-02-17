@@ -102,6 +102,10 @@ export class BootScene extends Phaser.Scene {
       this.load.audio(key, dataUrl);
     }
 
+    // ── Load MP3 music files ────────────────────────────
+    this.load.audio('music1', 'assets/audio/music1.mp3');
+    this.load.audio('music2', 'assets/audio/music2.mp3');
+
     this.load.once('complete', () => {
       bg.destroy(); fill.destroy(); label.destroy();
 

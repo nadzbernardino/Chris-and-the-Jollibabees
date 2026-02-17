@@ -32,6 +32,8 @@ import Phaser from 'phaser';
 /** All known audio keys — add new keys here when adding audio files */
 export const AUDIO_KEYS = {
   ambient:          'ambient_cottage',
+  gameplayMusic:    'music1',
+  endingMusic:      'music2',
   introMusic:       'intro_music',
   btnClick:         'btn_click',
   taskStart:        'task_start',
@@ -59,6 +61,25 @@ export const AUDIO_KEYS = {
 export const AUDIO_PATH = 'assets/audio/';
 
 export class AudioManager {
+    /** Play gameplay background music (music1.mp3) */
+    playGameplayMusic(): void {
+      this.playSfx(AUDIO_KEYS.gameplayMusic, { loop: true, volume: 0.35 });
+    }
+
+    /** Play ending background music (music2.mp3) */
+    playEndingMusic(): void {
+      this.playSfx(AUDIO_KEYS.endingMusic, { loop: true, volume: 0.35 });
+    }
+
+    /** Stop gameplay background music */
+    stopGameplayMusic(): void {
+      try { this.scene.sound.stopByKey(AUDIO_KEYS.gameplayMusic); } catch { /* noop */ }
+    }
+
+    /** Stop ending background music */
+    stopEndingMusic(): void {
+      try { this.scene.sound.stopByKey(AUDIO_KEYS.endingMusic); } catch { /* noop */ }
+    }
   private scene: Phaser.Scene;
   private unlocked = false;
   private ambientPlaying = false;

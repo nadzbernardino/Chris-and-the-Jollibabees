@@ -190,7 +190,6 @@ class GameStore {
   }
 
   useWater(): boolean {
-    if (this.state.waterUses >= 2) return false;
     this.state.waterUses++;
     return true;
   }
