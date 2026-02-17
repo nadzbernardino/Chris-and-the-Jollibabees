@@ -30,18 +30,18 @@ export class IntroSceneNew extends Phaser.Scene {
       .setDepth(1);
 
     // Title
-    this.add.text(DESIGN_W / 2, 180, 'BEEHIVE', {
+    this.add.text(DESIGN_W / 2, 160, 'BEEHIVE', {
       ...TEXT.title,
-      fontSize: '42px',
+      fontSize: '72px',
     }).setOrigin(0.5).setDepth(2);
 
     // Subtitle
-    this.add.text(DESIGN_W / 2, 250, 'Chris & the Jollibabees', {
+    this.add.text(DESIGN_W / 2, 260, 'Chris & the Jollibabees', {
       fontFamily: '"Press Start 2P", "Courier New", monospace',
-      fontSize: '11px',
+      fontSize: '20px',
       color: PAL_CSS.warmGold,
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 4,
     }).setOrigin(0.5).setDepth(2);
 
     // Story text
@@ -54,7 +54,7 @@ export class IntroSceneNew extends Phaser.Scene {
       'The Jollibabees are counting on you!',
     ].join('\n');
 
-    this.add.text(DESIGN_W / 2, 310, story, {
+    this.add.text(DESIGN_W / 2, 320, story, {
       ...TEXT.body,
       align: 'center',
       wordWrap: { width: 700 },
@@ -73,7 +73,7 @@ export class IntroSceneNew extends Phaser.Scene {
 
     const btnLabel = this.add.text(DESIGN_W / 2, btnY, 'Enter the Beehive', {
       ...TEXT.button,
-      fontSize: '14px',
+      fontSize: '24px',
       color: PAL_CSS.gold,
     }).setOrigin(0.5).setDepth(3);
 

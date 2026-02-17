@@ -85,7 +85,7 @@ export class VineBar {
 
     // Value text (right-aligned inside bar)
     this.valueText = scene.add.text(barX + barWidth - 4, 0, '', {
-      fontSize: '9px',
+      fontSize: '16px',
       fontFamily: 'monospace',
       color: PALETTE_CSS.ivory,
     }).setOrigin(1, 0).setAlpha(0.8);

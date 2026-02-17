@@ -70,54 +70,54 @@ export const TEXT = {
   /** Big title (intro screen, end screen) */
   title: {
     fontFamily: PIXEL_FONT,
-    fontSize: '36px',
+    fontSize: '64px',
     color: PAL_CSS.gold,
     stroke: PAL_CSS.darkWood,
-    strokeThickness: 6,
+    strokeThickness: 8,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 
   /** Section / modal title */
   heading: {
     fontFamily: PIXEL_FONT,
-    fontSize: '18px',
+    fontSize: '32px',
     color: PAL_CSS.gold,
     stroke: '#000000',
-    strokeThickness: 4,
+    strokeThickness: 5,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 
   /** Normal body text */
   body: {
     fontFamily: PIXEL_FONT,
-    fontSize: '13px',
+    fontSize: '22px',
     color: PAL_CSS.ivory,
     stroke: '#000000',
-    strokeThickness: 3,
-    lineSpacing: 8,
+    strokeThickness: 4,
+    lineSpacing: 12,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 
   /** Speech bubble text */
   bubble: {
     fontFamily: PIXEL_FONT,
-    fontSize: '12px',
+    fontSize: '20px',
     color: PAL_CSS.darkText,
-    lineSpacing: 6,
-    wordWrap: { width: 320 },
+    lineSpacing: 8,
+    wordWrap: { width: 500 },
     align: 'center' as const,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 
   /** Button label */
   button: {
     fontFamily: PIXEL_FONT,
-    fontSize: '13px',
+    fontSize: '22px',
     color: PAL_CSS.ivory,
     stroke: '#000000',
-    strokeThickness: 3,
+    strokeThickness: 4,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 
   /** Small label (follower name, progress counter) */
   small: {
     fontFamily: PIXEL_FONT,
-    fontSize: '9px',
+    fontSize: '16px',
     color: PAL_CSS.warmGold,
     stroke: '#000000',
     strokeThickness: 3,
@@ -126,38 +126,38 @@ export const TEXT = {
   /** HUD text (hearts, timer) */
   hud: {
     fontFamily: PIXEL_FONT,
-    fontSize: '16px',
+    fontSize: '28px',
     color: PAL_CSS.heartRed,
     stroke: '#000000',
-    strokeThickness: 4,
+    strokeThickness: 5,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 
   /** Minigame instruction header */
   instruction: {
     fontFamily: PIXEL_FONT,
-    fontSize: '14px',
+    fontSize: '24px',
     color: PAL_CSS.warmGold,
     stroke: '#000000',
-    strokeThickness: 4,
+    strokeThickness: 5,
   } as Phaser.Types.GameObjects.Text.TextStyle,
 } as const;
 
 // ─── SPACING / SIZING ─────────────────────────────────────
 export const UI = {
   /** Pixel-rounded corner radius (keep small for 8-bit feel) */
-  radius: 8,
+  radius: 12,
   /** Inner padding inside panels/bubbles */
-  pad: 16,
+  pad: 24,
   /** Minimum mobile tap target (design-space px; at 1536 wide ≈ 44 CSS px) */
-  tapMin: 64,
+  tapMin: 80,
   /** Button dimensions */
-  btnW: 260,
-  btnH: 56,
+  btnW: 420,
+  btnH: 80,
   /** Modal overlay alpha */
   overlayAlpha: 0.6,
   /** Nav arrow size */
-  arrowW: 60,
-  arrowH: 84,
+  arrowW: 90,
+  arrowH: 120,
 } as const;
 
 // ─── BUTTON HELPERS ───────────────────────────────────────
@@ -204,11 +204,11 @@ export const BUBBLE = {
 export const MODAL = {
   panelFill: PAL.forestGreen,
   panelStroke: PAL.lightWood,
-  panelStrokeW: 4,
+  panelStrokeW: 5,
   innerFill: PAL.darkPine,      // optional inner inset
   overlayAlpha: 0.6,
-  width: 620,
-  height: 380,
+  width: 900,
+  height: 560,
 } as const;
 
 /**

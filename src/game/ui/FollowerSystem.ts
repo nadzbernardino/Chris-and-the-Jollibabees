@@ -83,7 +83,7 @@ export class FollowerSystem {
       // Name label above (name ONLY — no subtitle)
       const label = this.scene.add.text(0, -img.displayHeight - 8, def.name, {
         fontFamily: '"Press Start 2P", "Courier New", monospace',
-        fontSize: '9px', color: '#FFE4B5',
+        fontSize: '16px', color: '#FFE4B5',
         stroke: '#000000', strokeThickness: 3,
       }).setOrigin(0.5, 1);
 
@@ -151,9 +151,12 @@ export class FollowerSystem {
     this.followers.forEach((c, i) => {
       const targetX = this.chrisX - (i + 1) * FOLLOWER_SPACING;
       const prevX = c.x;
-      // First follower lerps at 0.12, last at ~0.06 — closer = snappier
-      const lerp = 0.12 - (i * 0.01);
-      c.x += (targetX - c.x) * Math.max(lerp, 0.06);
+      // JolliCute (jbIdx 0) always lags behind — much slower lerp
+      const jbIdx = found[i];
+      const isJolliCute = jbIdx === 0;
+      const baseLerp = 0.12 - (i * 0.01);
+      const lerp = isJolliCute ? 0.03 : Math.max(baseLerp, 0.06);
+      c.x += (targetX - c.x) * lerp;
       const fdx = c.x - prevX;
 
       // Update follower shadow position
@@ -162,7 +165,6 @@ export class FollowerSystem {
       }
 
       // Swap jollibabee directional textures & re-apply explicit size
-      const jbIdx = found[i];
       const def = jbIdx != null ? JOLLIBABEES[jbIdx] : undefined;
       const img = this.followerImages[i];
       if (def && img) {

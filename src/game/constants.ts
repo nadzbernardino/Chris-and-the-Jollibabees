@@ -89,6 +89,12 @@ export const ASSETS: Record<string, string> = {
   // Characters
   chris_right:      `${CHAR}Chris_right_facing.png`,
   chris_left:       `${CHAR}Chris_left_facing.png`,
+  chris_dizzy:      `${CHAR}chris_dizzy.png`,
+  chris_whey:       `${CHAR}chris_whey.png`,
+  chris_coffee:     `${CHAR}chris_coffee.png`,
+  chris_burger:     `${CHAR}chris_brudger.png`,
+  chris_water:      `${CHAR}chris_water.png`,
+  chris_wine:       `${CHAR}chris_wine.png`,
   mamibee_left:         `${CHAR}Mamibee_left_facing.png`,
   mamibee_left_shock:   `${CHAR}Mamibee_left_facing_shock.png`,
   mamibee_right:        `${CHAR}Mamibee_right_facing.png`,

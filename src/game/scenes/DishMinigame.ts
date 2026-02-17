@@ -87,8 +87,8 @@ export class DishMinigame extends Phaser.Scene {
 
     // Close / cancel button
     const closeBtn = this.add.text(DESIGN_W - 60, 20, '✕', {
-      fontFamily: PIXEL_FONT, fontSize: '20px', color: PAL_CSS.danger,
-      stroke: '#000', strokeThickness: 3,
+      fontFamily: PIXEL_FONT, fontSize: '32px', color: PAL_CSS.danger,
+      stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(30).setInteractive({ useHandCursor: true });
 
     closeBtn.on('pointerdown', () => this.exitMinigame(false));

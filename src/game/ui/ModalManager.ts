@@ -154,7 +154,7 @@ export class ModalManager {
       this.countdownValue = cfg.countdown;
       this.countdownText = this.scene.add.text(cx, nextY, `${this.countdownValue}`, {
         fontFamily: PIXEL_FONT,
-        fontSize: '28px',
+        fontSize: '42px',
         color: PAL_CSS.danger,
         stroke: '#000000',
         strokeThickness: 4,

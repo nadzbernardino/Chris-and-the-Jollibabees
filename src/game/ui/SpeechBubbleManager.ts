@@ -313,22 +313,41 @@ export class SpeechBubbleManager {
     const cuteContainer = this.getFollowerContainer?.(0);
     if (!liteContainer || !cuteContainer) return;
 
-    // Visible bump — JolliLite bumps into JolliCute
+    // Visible bump — JolliLite charges into JolliCute (bigger, more dramatic)
+    const origLiteX = liteContainer.x;
+    const origCuteX = cuteContainer.x;
     this.scene.tweens.add({
       targets: liteContainer,
-      x: liteContainer.x + 25,
-      duration: 120,
+      x: origLiteX + 50,
+      duration: 150,
       yoyo: true,
-      ease: 'Power2',
+      ease: 'Power3',
     });
-    this.scene.time.delayedCall(120, () => {
+    this.scene.time.delayedCall(150, () => {
+      // JolliCute gets knocked back further + wobbles
       this.scene.tweens.add({
         targets: cuteContainer,
-        x: cuteContainer.x + 40,
-        duration: 200,
+        x: origCuteX + 80,
+        duration: 300,
         yoyo: true,
         ease: 'Bounce.easeOut',
       });
+      // Shake/wobble rotation on JolliCute
+      this.scene.tweens.add({
+        targets: cuteContainer,
+        angle: { from: -12, to: 12 },
+        duration: 100,
+        yoyo: true,
+        repeat: 3,
+        ease: 'Sine.easeInOut',
+        onComplete: () => { cuteContainer.angle = 0; },
+      });
+      // Brief red tint flash on JolliCute
+      const cuteImg = cuteContainer.list?.[0] as Phaser.GameObjects.Image | undefined;
+      if (cuteImg?.setTint) {
+        cuteImg.setTint(0xff6666);
+        this.scene.time.delayedCall(400, () => cuteImg.clearTint());
+      }
     });
 
     // Always show a reaction line

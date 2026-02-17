@@ -20,20 +20,20 @@ export class BootScene extends Phaser.Scene {
 
     // Title
     const title = this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 80, 'BEEHIVE', {
-      fontSize: '36px',
+      fontSize: '64px',
       fontFamily: '"Press Start 2P", "Courier New", monospace',
       color: '#F4C76A',
       stroke: '#000000',
-      strokeThickness: 4,
+      strokeThickness: 6,
     }).setOrigin(0.5);
 
     // Tap prompt
-    const tapText = this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 20, '♫ Tap to Start ♫', {
-      fontSize: '14px',
+    const tapText = this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 40, '♫ Tap to Start ♫', {
+      fontSize: '24px',
       fontFamily: '"Press Start 2P", "Courier New", monospace',
       color: '#E6C98B',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 4,
     }).setOrigin(0.5);
 
     // Pulse the tap text
@@ -75,8 +75,8 @@ export class BootScene extends Phaser.Scene {
     const bg = this.add.rectangle(cx, cy, barW, barH, 0x333333);
     const fill = this.add.rectangle(cx - barW / 2, cy, 0, barH - 4, 0xf4c76a).setOrigin(0, 0.5);
     const label = this.add.text(cx, cy - 40, 'Loading...', {
-      fontSize: '14px', fontFamily: '"Press Start 2P", "Courier New", monospace', color: '#F4C76A',
-      stroke: '#000000', strokeThickness: 3,
+      fontSize: '24px', fontFamily: '"Press Start 2P", "Courier New", monospace', color: '#F4C76A',
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
 
     this.load.on('progress', (v: number) => {

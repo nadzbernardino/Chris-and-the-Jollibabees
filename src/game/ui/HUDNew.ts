@@ -11,14 +11,14 @@ import { DESIGN_W } from '../constants';
 import { PAL, PAL_CSS, TEXT, PIXEL_FONT } from '../uiTheme';
 import { store } from '../store/GameStoreNew';
 
-const HEART_SIZE = 28;   // width of one pixel heart
-const HEART_GAP  = 6;
+const HEART_SIZE = 40;   // width of one pixel heart (scaled up)
+const HEART_GAP  = 8;
 const HUD_X      = 24;
 const HUD_Y      = 20;
-const BAR_W      = 100;
-const BAR_H      = 8;
-const BAR_GAP    = 22;
-const LABEL_W    = 40;
+const BAR_W      = 160;
+const BAR_H      = 14;
+const BAR_GAP    = 36;
+const LABEL_W    = 60;
 
 export class HUDNew {
   private scene: Phaser.Scene;
@@ -49,20 +49,20 @@ export class HUDNew {
     // Diamonds counter (top-right, above timer)
     this.diamondsText = this.scene.add.text(DESIGN_W - HUD_X, HUD_Y, '💎 0', {
       fontFamily: PIXEL_FONT,
-      fontSize: '12px',
+      fontSize: '22px',
       color: '#88DDFF',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 4,
     }).setOrigin(1, 0);
     this.container.add(this.diamondsText);
 
     // Timer text (top-right, below diamonds)
-    this.timerText = this.scene.add.text(DESIGN_W - HUD_X, HUD_Y + 20, '00:00', {
+    this.timerText = this.scene.add.text(DESIGN_W - HUD_X, HUD_Y + 30, '00:00', {
       fontFamily: PIXEL_FONT,
-      fontSize: '14px',
+      fontSize: '24px',
       color: PAL_CSS.warmGold,
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 4,
     }).setOrigin(1, 0);
     this.container.add(this.timerText);
 
@@ -102,7 +102,7 @@ export class HUDNew {
     g.clear();
 
     const s = store.s;
-    const startY = HUD_Y + HEART_SIZE + 10;
+    const startY = HUD_Y + HEART_SIZE + 14;
 
     const bars = [
       { label: 'PREP', fullLabel: 'Preparation', value: s.preparation, max: 100, color: 0x4CAF50 },
@@ -132,12 +132,12 @@ export class HUDNew {
     if (!(this as any)._barLabels) {
       (this as any)._barLabels = bars.map((bar, i) => {
         const y = startY + i * BAR_GAP - 1;
-        const label = this.scene.add.text(HUD_X + BAR_W + 4, y, '', {
+        const label = this.scene.add.text(HUD_X + BAR_W + 6, y, '', {
           fontFamily: PIXEL_FONT,
-          fontSize: '7px',
+          fontSize: '12px',
           color: PAL_CSS.ivory,
           stroke: '#000000',
-          strokeThickness: 2,
+          strokeThickness: 3,
         }).setOrigin(0, 0);
         this.container.add(label);
         return label;
@@ -147,13 +147,13 @@ export class HUDNew {
     // Add bar name labels (left of bars) if not created
     if (!(this as any)._barNameLabels) {
       (this as any)._barNameLabels = bars.map((bar, i) => {
-        const y = startY + i * BAR_GAP - 1;
-        const nameLabel = this.scene.add.text(HUD_X, y - 9, bar.fullLabel, {
+        const y = startY + i * BAR_GAP - 2;
+        const nameLabel = this.scene.add.text(HUD_X, y - 14, bar.fullLabel, {
           fontFamily: PIXEL_FONT,
-          fontSize: '6px',
+          fontSize: '10px',
           color: PAL_CSS.ivory,
           stroke: '#000000',
-          strokeThickness: 2,
+          strokeThickness: 3,
         }).setOrigin(0, 0);
         this.container.add(nameLabel);
         return nameLabel;

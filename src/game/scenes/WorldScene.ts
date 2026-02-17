@@ -202,6 +202,7 @@ export class WorldScene extends Phaser.Scene {
     this.lastIntegrityThreshold = 2;  // integrity starts at 50 → threshold 2
     this.totalTasksCompleted = 0;
     this.wineClickCount = 0;
+    this.isConsuming = false;
     this.mobileLeft = false;
     this.mobileRight = false;
     this.r2_trashItems = [];
@@ -257,7 +258,7 @@ export class WorldScene extends Phaser.Scene {
     // Room name indicator
     this.roomNameText = this.add.text(DESIGN_W / 2, 20, ROOM_DEFS[0].name, {
       ...TEXT.small,
-      fontSize: '11px',
+      fontSize: '20px',
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(601);
 
     // ── Modal ────────────────────────────────────────────
@@ -448,8 +449,8 @@ export class WorldScene extends Phaser.Scene {
       .setStrokeStyle(2, PAL.gold, 0.6)
       .setScrollFactor(0).setDepth(700).setInteractive();
     this.add.text(pad + size / 2, y, '◀', {
-      fontFamily: PIXEL_FONT, fontSize: '24px', color: PAL_CSS.gold,
-      stroke: '#000', strokeThickness: 3,
+      fontFamily: PIXEL_FONT, fontSize: '36px', color: PAL_CSS.gold,
+      stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(701);
 
     lBg.on('pointerdown', () => { this.mobileLeft = true; });
@@ -461,8 +462,8 @@ export class WorldScene extends Phaser.Scene {
       .setStrokeStyle(2, PAL.gold, 0.6)
       .setScrollFactor(0).setDepth(700).setInteractive();
     this.add.text(DESIGN_W - pad - size / 2, y, '▶', {
-      fontFamily: PIXEL_FONT, fontSize: '24px', color: PAL_CSS.gold,
-      stroke: '#000', strokeThickness: 3,
+      fontFamily: PIXEL_FONT, fontSize: '36px', color: PAL_CSS.gold,
+      stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(701);
 
     rBg.on('pointerdown', () => { this.mobileRight = true; });
@@ -848,7 +849,7 @@ export class WorldScene extends Phaser.Scene {
     this.r0_progressText = this.add.text(
       this.rx(room, ROOM_WIDTH * 0.82), PLATES_Y - 100,
       done ? '✅ Done' : 'clean the dishes',
-      { ...TEXT.small, fontSize: '13px', color: PAL_CSS.ivory, fontStyle: 'bold' },
+      { ...TEXT.small, fontSize: '22px', color: PAL_CSS.ivory, fontStyle: 'bold' },
     ).setOrigin(0.5).setDepth(15);
 
     // Hide label if plates are clean, show if dirty
@@ -890,10 +891,11 @@ export class WorldScene extends Phaser.Scene {
     if (store.s.coffeeUses >= 2) this.r0_coffee.setTint(0x666666);
 
     this.r0_coffee.on('pointerdown', () => {
-      if (this.currentRoom !== room || this.modal.isOpen) return;
+      if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
       if (!this.canConsume()) return;
       if (store.useCoffee()) {
         this.lastDrinkTime = Date.now();
+        this.playConsumeAnimation('chris_coffee');
         // Coffee: +1 Heart, +10 Energy
         store.addHeart(1);
         store.addEnergy(10);
@@ -953,10 +955,11 @@ export class WorldScene extends Phaser.Scene {
     if (store.s.wheyUses >= 2) this.r1_whey.setTint(0x666666);
 
     this.r1_whey.on('pointerdown', () => {
-      if (this.currentRoom !== room || this.modal.isOpen) return;
+      if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
       if (!this.canConsume()) return;
       if (store.useWhey()) {
         this.lastDrinkTime = Date.now();
+        this.playConsumeAnimation('chris_whey');
         // Whey: +1 Heart, +15 Energy
         store.addHeart(1);
         store.addEnergy(15);
@@ -987,9 +990,10 @@ export class WorldScene extends Phaser.Scene {
     drawShadow(this, this.r1_water.x, DRINK_Y + DRINK_H / 2, DRINK_H * 0.7);
 
     this.r1_water.on('pointerdown', () => {
-      if (this.currentRoom !== room || this.modal.isOpen) return;
-      if (!this.canConsume()) return;
+      if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
+      // Water can be drunk anytime — no canConsume() gating
       this.lastDrinkTime = Date.now();
+      this.playConsumeAnimation('chris_water');
       store.addHeart(1);
       store.addEnergy(8);
       this.hud.refresh();
@@ -1009,10 +1013,11 @@ export class WorldScene extends Phaser.Scene {
     if (store.s.energyDrinkUses >= 2) this.r1_energyDrink.setTint(0x666666);
 
     this.r1_energyDrink.on('pointerdown', () => {
-      if (this.currentRoom !== room || this.modal.isOpen) return;
+      if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
       if (!this.canConsume()) return;
       if (store.useEnergyDrink()) {
         this.lastDrinkTime = Date.now();
+        this.playConsumeAnimation('chris_water');
         // Energy drink: +1 Heart, +20 Energy
         store.addHeart(1);
         store.addEnergy(20);
@@ -1071,19 +1076,32 @@ export class WorldScene extends Phaser.Scene {
       drawShadow(this, wineImg.x, DRINK_Y + DRINK_H / 2, DRINK_H * 0.7);
 
       wineImg.on('pointerdown', () => {
-        if (this.currentRoom !== room || this.modal.isOpen) return;
+        if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
         this.wineClickCount++;
+        this.playConsumeAnimation('chris_wine');
         store.removeHeart(1);
         store.addIntegrity(-3);
         this.hud.refresh();
         fxOuchFlicker(this);
         this.audio.heartLose();
 
-        if (this.wineClickCount >= 3) {
-          this.triggerTimeWastedGameOver('Drank too much wine and got dizzy... 🍷🥴');
+        if (this.wineClickCount >= 4) {
+          // Show dizzy Chris sprite first so players can see the cute asset
+          if (this.chris) {
+            this.chris.setTexture('chris_dizzy');
+            sizeH(this.chris, CHRIS_H);
+          }
+          this.gameOverTriggered = true; // block other game overs
+          this.audio.heartLose();
+          this.bubbleMgr.chrisSay('🍷🥴 Too much wine... feeling dizzy...', 3000);
+          // Delay 3s before showing game over overlay
+          this.time.delayedCall(3000, () => {
+            this.gameOverTriggered = false; // allow triggerTimeWastedGameOver to proceed
+            this.triggerTimeWastedGameOver('Drank too much wine and got dizzy... 🍷🥴');
+          });
           return;
         }
-        this.bubbleMgr.chrisSay(`🍷 Ugh... that was a mistake. -1 ❤️ (${this.wineClickCount}/3)`, 3000);
+        this.bubbleMgr.chrisSay(`🍷 Ugh... that was a mistake. -1 ❤️ (${this.wineClickCount}/4)`, 3000);
         this.checkLowHeart();
         this.checkGameOver();
       });
@@ -1097,14 +1115,12 @@ export class WorldScene extends Phaser.Scene {
     drawShadow(this, burgerImg.x, DRINK_Y + DRINK_H / 2, DRINK_H * 0.7);
 
     burgerImg.on('pointerdown', () => {
-      if (this.currentRoom !== room || this.modal.isOpen) return;
-      if (Date.now() - this.lastDrinkTime < 20000) {
-        this.showChrisBubble('Easy... let that one settle first.');
-        return;
-      }
+      if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
+      if (!this.canConsume()) return;
       // Only allow if hearts < 3
       if (store.s.hearts < 3) {
         this.lastDrinkTime = Date.now();
+        this.playConsumeAnimation('chris_burger');
         store.addHeart(1);
         this.hud.refresh();
         fxHeartFlash(this, true);
@@ -1119,14 +1135,14 @@ export class WorldScene extends Phaser.Scene {
     // ── Shop stall (spend diamonds) ──────────────────────
     const SHOP_X = this.rx(room, ROOM_WIDTH * 0.15);
     const SHOP_Y = FLOOR_Y - PROP_M / 2;
-    const shopBg = this.add.rectangle(0, 0, 120, 80, PAL.wood)
+    const shopBg = this.add.rectangle(0, 0, 180, 120, PAL.wood)
       .setStrokeStyle(3, PAL.darkWood);
-    const shopLabel = this.add.text(0, -10, '🛒 Shop', {
-      fontFamily: PIXEL_FONT, fontSize: '12px', color: PAL_CSS.gold,
-      stroke: '#000000', strokeThickness: 3,
+    const shopLabel = this.add.text(0, -14, '🛒 Shop', {
+      fontFamily: PIXEL_FONT, fontSize: '20px', color: PAL_CSS.gold,
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
-    const shopDiamond = this.add.text(0, 18, '💎', {
-      fontSize: '18px',
+    const shopDiamond = this.add.text(0, 22, '💎', {
+      fontSize: '28px',
     }).setOrigin(0.5);
     this.r1_shop = this.add.container(SHOP_X, SHOP_Y, [shopBg, shopLabel, shopDiamond])
       .setDepth(10).setSize(120, 80).setInteractive({ useHandCursor: true });
@@ -1149,8 +1165,8 @@ export class WorldScene extends Phaser.Scene {
 
     // Label
     const barbellLabel = this.add.text(BARBELL_X, BARBELL_Y - BARBELL_H / 2 - 20, '🏋️ Exercise', {
-      fontFamily: PIXEL_FONT, fontSize: '10px', color: PAL_CSS.gold,
-      stroke: '#000000', strokeThickness: 3,
+      fontFamily: PIXEL_FONT, fontSize: '18px', color: PAL_CSS.gold,
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(15);
 
     this.r1_barbell.on('pointerdown', () => {
@@ -1292,8 +1308,8 @@ export class WorldScene extends Phaser.Scene {
     // Rep counter overlay
     let reps = 0;
     const repText = this.add.text(DESIGN_W / 2, 120, '🏋️ Exercising... 0 reps', {
-      fontFamily: PIXEL_FONT, fontSize: '13px', color: PAL_CSS.gold,
-      stroke: '#000000', strokeThickness: 4,
+      fontFamily: PIXEL_FONT, fontSize: '22px', color: PAL_CSS.gold,
+      stroke: '#000000', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(600).setScrollFactor(0);
 
     // Progress bar
@@ -1512,7 +1528,7 @@ export class WorldScene extends Phaser.Scene {
   private startPhoneRing(phone: Phaser.GameObjects.Image): void {
     // Notification badge
     const badge = this.add.text(phone.x + 20, phone.y - 40, '🔴', {
-      fontSize: '16px',
+      fontSize: '26px',
     }).setDepth(11).setAlpha(0);
 
     // Ring cycle: every 12-20s, phone buzzes for attention
@@ -2601,8 +2617,8 @@ export class WorldScene extends Phaser.Scene {
 
     // Countdown text overlay (updates every second)
     countdownText = this.add.text(DESIGN_W / 2, 100, `⏱️ ${remaining}s`, {
-      fontFamily: PIXEL_FONT, fontSize: '16px', color: '#FF6666',
-      stroke: '#000000', strokeThickness: 4,
+      fontFamily: PIXEL_FONT, fontSize: '26px', color: '#FF6666',
+      stroke: '#000000', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(1100).setScrollFactor(0);
 
     // Tick every second
@@ -3022,8 +3038,11 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Shared gating for consumables: allow when heart or energy is low, block + cooldown when both full */
+  /** Shared gating for consumables: allow when heart or energy is low, block + cooldown when both full.
+   *  Override: if hearts < 3, always allow (skip cooldown) so player can heal. */
   private canConsume(): boolean {
+    // If hearts are low, override cooldown — let the player heal
+    if (store.s.hearts < 3) return true;
     // 20s cooldown between any drinks
     if (Date.now() - this.lastDrinkTime < 20000) {
       this.showChrisBubble('Easy... let that one settle first.');
@@ -3035,6 +3054,24 @@ export class WorldScene extends Phaser.Scene {
       return false;
     }
     return true;
+  }
+
+  /** Swap Chris's texture to a consume animation for 3.5s, then revert.
+   *  Uses sizeH to keep same proportional height as default Chris. */
+  private isConsuming = false;
+  private playConsumeAnimation(textureKey: string): void {
+    if (this.isConsuming || !this.chris) return;
+    this.isConsuming = true;
+    const originalTexture = this.chris.texture.key;
+    this.chris.setTexture(textureKey);
+    sizeH(this.chris, CHRIS_H);
+    this.time.delayedCall(3500, () => {
+      if (this.chris && !this.gameOverTriggered) {
+        this.chris.setTexture(originalTexture);
+        sizeH(this.chris, CHRIS_H);
+      }
+      this.isConsuming = false;
+    });
   }
 
   /** Check hearts and show warning if low */
@@ -3093,24 +3130,24 @@ export class WorldScene extends Phaser.Scene {
     ).setDepth(950).setInteractive().setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 100, 'GAME OVER', {
-      fontFamily: PIXEL_FONT, fontSize: '36px', color: '#FF4444',
-      stroke: '#000000', strokeThickness: 6,
+      fontFamily: PIXEL_FONT, fontSize: '56px', color: '#FF4444',
+      stroke: '#000000', strokeThickness: 8,
     }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
 
-    this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 20, 'You ran out of hearts!', {
-      fontFamily: PIXEL_FONT, fontSize: '13px', color: PAL_CSS.ivory,
-      stroke: '#000000', strokeThickness: 3,
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 10, 'You ran out of hearts!', {
+      fontFamily: PIXEL_FONT, fontSize: '22px', color: PAL_CSS.ivory,
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
 
     const retryBg = this.add.rectangle(
-      DESIGN_W / 2, DESIGN_H / 2 + 80, UI.btnW, UI.btnH, PAL.wood,
+      DESIGN_W / 2, DESIGN_H / 2 + 100, UI.btnW, UI.btnH, PAL.wood,
     ).setStrokeStyle(3, PAL.darkWood)
       .setInteractive({ useHandCursor: true })
       .setDepth(960).setScrollFactor(0);
 
-    this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 80, '🔄 Try Again', {
-      fontFamily: PIXEL_FONT, fontSize: '14px', color: PAL_CSS.gold,
-      stroke: '#000000', strokeThickness: 3,
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 100, '🔄 Try Again', {
+      fontFamily: PIXEL_FONT, fontSize: '24px', color: PAL_CSS.gold,
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(961).setScrollFactor(0);
 
     retryBg.on('pointerdown', () => {
@@ -3125,32 +3162,33 @@ export class WorldScene extends Phaser.Scene {
     this.gameOverTriggered = true;
     this.audio.gameOver();
     this.audio.stopAmbient();
+    this.audio.stopGameplayMusic();
 
     const blocker = this.add.rectangle(
       DESIGN_W / 2, DESIGN_H / 2, DESIGN_W, DESIGN_H, 0x000000, 0.85,
     ).setDepth(950).setInteractive().setScrollFactor(0);
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 100, 'GAME OVER', {
-      fontFamily: PIXEL_FONT, fontSize: '36px', color: '#FF4444',
-      stroke: '#000000', strokeThickness: 6,
+      fontFamily: PIXEL_FONT, fontSize: '56px', color: '#FF4444',
+      stroke: '#000000', strokeThickness: 8,
     }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
 
-    this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 20, reason, {
-      fontFamily: PIXEL_FONT, fontSize: '11px', color: PAL_CSS.ivory,
-      stroke: '#000000', strokeThickness: 3,
-      wordWrap: { width: 500 },
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 10, reason, {
+      fontFamily: PIXEL_FONT, fontSize: '20px', color: PAL_CSS.ivory,
+      stroke: '#000000', strokeThickness: 4,
+      wordWrap: { width: 700 },
       align: 'center',
     }).setOrigin(0.5).setDepth(960).setScrollFactor(0);
 
     const retryBg = this.add.rectangle(
-      DESIGN_W / 2, DESIGN_H / 2 + 80, UI.btnW, UI.btnH, PAL.wood,
+      DESIGN_W / 2, DESIGN_H / 2 + 100, UI.btnW, UI.btnH, PAL.wood,
     ).setStrokeStyle(3, PAL.darkWood)
       .setInteractive({ useHandCursor: true })
       .setDepth(960).setScrollFactor(0);
 
-    this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 80, '🔄 Try Again', {
-      fontFamily: PIXEL_FONT, fontSize: '14px', color: PAL_CSS.gold,
-      stroke: '#000000', strokeThickness: 3,
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 100, '🔄 Try Again', {
+      fontFamily: PIXEL_FONT, fontSize: '24px', color: PAL_CSS.gold,
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(961).setScrollFactor(0);
 
     retryBg.on('pointerdown', () => {
@@ -3337,16 +3375,16 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.add.text(DESIGN_W / 2, DESIGN_H / 2 - 40, endMsg, {
-      ...TEXT.body, align: 'center', fontSize: '11px',
+      ...TEXT.body, align: 'center', fontSize: '22px',
       color: PAL_CSS.warmGold,
     }).setOrigin(0.5).setDepth(810);
 
-    this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 20,
+    this.add.text(DESIGN_W / 2, DESIGN_H / 2 + 30,
       `Hearts: ${s.hearts}  |  Prep: ${s.preparation}  |  Integrity: ${s.integrity}\n` +
       `Energy: ${s.energy}  |  Diamonds: ${s.diamonds}\n` +
       `Jollibabees: ${s.jollibabeesFound.length}/6\n` +
       `Whale Wins: ${s.whaleCoinWins}  |  Whale Losses: ${s.whaleCoinLosses}`, {
-        ...TEXT.body, align: 'center', fontSize: '9px',
+        ...TEXT.body, align: 'center', fontSize: '16px',
       }).setOrigin(0.5).setDepth(810);
 
     const rbW = UI.btnW;

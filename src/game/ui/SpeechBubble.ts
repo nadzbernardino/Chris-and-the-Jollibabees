@@ -34,7 +34,7 @@ export class SpeechBubble {
     let speakerHeight = 0;
     if (cfg.speaker) {
       const nameText = scene.add.text(0, 0, cfg.speaker, {
-        fontSize: '8px',
+        fontSize: '14px',
         fontFamily: 'monospace',
         color: PALETTE_CSS.wood2,
       });
