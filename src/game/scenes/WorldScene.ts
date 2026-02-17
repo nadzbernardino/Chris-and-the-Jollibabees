@@ -1195,11 +1195,6 @@ export class WorldScene extends Phaser.Scene {
     burgerImg.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
       if (!this.canConsume()) return;
-      // Only allow if hearts < 3
-      if (store.s.hearts >= 3) {
-        this.showChrisBubble('I feel fine right now. Save it for when I\'m low.');
-        return;
-      }
       if (store.useBurger()) {
         this.lastDrinkTime = Date.now();
         this.playConsumeAnimation('chris_burger', burgerImg);
@@ -1910,17 +1905,18 @@ export class WorldScene extends Phaser.Scene {
       this.startSleepSequence(roomKey);
     });
 
-    // Remote pickup on bedroom floor
-    this.setupBedroomPickups(room);
-
     // Penguin stuffed toy — lower left side of bed, same size as whey (140px)
-    const PENGUIN_H = 140;
+    const PENGUIN_H = 200;
     const bedLeftX = this.r4_bed.x - (this.r4_bed.displayWidth / 2);
     this.r4_penguin = this.add.image(
       bedLeftX - PENGUIN_H / 2 + 20, FLOOR_Y - PENGUIN_H * 1.4, 'penguin',
     ).setDepth(10).setInteractive({ useHandCursor: true });
     sizeH(this.r4_penguin, PENGUIN_H);
-    drawShadow(this, this.r4_penguin.x, FLOOR_Y, PENGUIN_H * 0.5);
+    sizeH(this.r4_penguin, PENGUIN_H);
+    drawShadow(this, this.r4_penguin.x, FLOOR_Y, PENGUIN_H * 0.7);
+
+    // Bedroom pickups (remote, vit, watch, headphones) — after penguin so we can position near it
+    this.setupBedroomPickups(room);
 
     this.r4_penguin.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
@@ -2198,13 +2194,13 @@ export class WorldScene extends Phaser.Scene {
 
   // ── Bedroom pickups (remote, vit, watch, headphones) ───
   private setupBedroomPickups(room: number): void {
-    const PICKUP_H = 220; // same height as wallet
+    const PICKUP_H = 90; // scaled down for vit, watch, headphones
 
     // Remote — on the wall
     if (!store.hasPickedUp('remote')) {
       const REMOTE_H = 308;
       const remoteImg = this.add.image(
-        this.rx(room, ROOM_WIDTH * 0.20), Math.round(WALL_Y * 0.7 * 1.35), 'remote',
+        this.rx(room, ROOM_WIDTH * 0.20), Math.round(WALL_Y * 0.7 * 1.25), 'remote',
       ).setDepth(10).setInteractive({ useHandCursor: true });
       sizeH(remoteImg, REMOTE_H);
 
@@ -2221,7 +2217,7 @@ export class WorldScene extends Phaser.Scene {
 
     // Vitamin bottle — beside the remote on the wall
     const vitImg = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.30), Math.round(WALL_Y * 0.7 * 1.35), 'vit',
+      this.rx(room, ROOM_WIDTH * 0.30), Math.round(WALL_Y * 0.7 * 1.25) + 80, 'vit',
     ).setDepth(10).setInteractive({ useHandCursor: true });
     sizeH(vitImg, PICKUP_H);
     if (this.vitUses >= 2) vitImg.setTint(0x666666);
@@ -2436,7 +2432,7 @@ export class WorldScene extends Phaser.Scene {
     sizeH(this.r6_bonsaiPretty, PROP_L);
 
     // Bucket — always visible (doesn't disappear after watering)
-    const BUCKET_H = Math.round(PROP_M * 0.36);
+    const BUCKET_H = Math.round(PROP_M * 0.5);
     this.r6_bucket = this.add.image(
       this.rx(room, ROOM_WIDTH * 0.25), FLOOR_Y - BUCKET_H / 2, 'bucket',
     ).setDepth(10)
