@@ -87,8 +87,8 @@ const JB   = 'assets/jollibabees/';
 
 export const ASSETS: Record<string, string> = {
   // Characters
-  chris_right:      `${CHAR}Chris_right_facing.png`,
-  chris_left:       `${CHAR}Chris_left_facing.png`,
+  chris_right:      `${CHAR}Chris_right_facingv2.png`,
+  chris_left:       `${CHAR}Chris_left_facingv2.png`,
   chris_dizzy:      `${CHAR}chris_dizzy.png`,
   chris_whey:       `${CHAR}chris_whey.png`,
   chris_coffee:     `${CHAR}chris_coffee.png`,
