@@ -266,7 +266,7 @@ export class WorldScene extends Phaser.Scene {
     // ── Audio ────────────────────────────────────────────
     this.audio = new AudioManager(this);
     // Start cute background music loop
-    this.time.delayedCall(500, () => this.audio.startAmbient());
+    //this.time.delayedCall(500, () => this.audio.startAmbient());
 
     // ── Speech Bubble Manager ────────────────────────────
     this.bubbleMgr = new SpeechBubbleManager();
