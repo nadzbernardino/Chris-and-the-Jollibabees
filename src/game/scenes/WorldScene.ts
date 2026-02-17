@@ -1078,7 +1078,6 @@ export class WorldScene extends Phaser.Scene {
       wineImg.on('pointerdown', () => {
         if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
         this.wineClickCount++;
-        this.playConsumeAnimation('chris_wine');
         store.removeHeart(1);
         store.addIntegrity(-3);
         this.hud.refresh();
@@ -1086,21 +1085,26 @@ export class WorldScene extends Phaser.Scene {
         this.audio.heartLose();
 
         if (this.wineClickCount >= 4) {
-          // Show dizzy Chris sprite first so players can see the cute asset
+          // Fatal 4th drink — show chris_dizzy directly (skip playConsumeAnimation
+          // so its 3.5s revert timer doesn't overwrite the dizzy texture)
           if (this.chris) {
             this.chris.setTexture('chris_dizzy');
             sizeH(this.chris, CHRIS_H);
+            this.chris.setDepth(970); // above game over overlay (depth 950)
           }
+          this.isConsuming = true; // block further consume clicks
           this.gameOverTriggered = true; // block other game overs
           this.audio.heartLose();
           this.bubbleMgr.chrisSay('🍷🥴 Too much wine... feeling dizzy...', 3000);
-          // Delay 3s before showing game over overlay
+          // Delay 3s so players can see chris_dizzy before game over overlay
           this.time.delayedCall(3000, () => {
-            this.gameOverTriggered = false; // allow triggerTimeWastedGameOver to proceed
+            this.gameOverTriggered = false;
             this.triggerTimeWastedGameOver('Drank too much wine and got dizzy... 🍷🥴');
           });
           return;
         }
+        // Non-fatal wine drink — play consume animation normally
+        this.playConsumeAnimation('chris_wine');
         this.bubbleMgr.chrisSay(`🍷 Ugh... that was a mistake. -1 ❤️ (${this.wineClickCount}/4)`, 3000);
         this.checkLowHeart();
         this.checkGameOver();
