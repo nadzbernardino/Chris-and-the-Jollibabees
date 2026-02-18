@@ -112,6 +112,7 @@ export class WorldScene extends Phaser.Scene {
   private r3_doomScrollCloseCount = 0;
   private darmeshWorkCycles = 0;
   private darmeshRecallTimer?: Phaser.Time.TimerEvent;
+  private darmeshOutsideCalls = 0;
 
   // ── Room 1: Exercise ─────────────────────────────────
   private r1_barbell!: Phaser.GameObjects.Image;
@@ -488,9 +489,33 @@ export class WorldScene extends Phaser.Scene {
       Math.floor(this.chris.x / ROOM_WIDTH), 0, NUM_ROOMS - 1,
     );
     if (newRoom !== this.currentRoom) {
+      const prevRoom = this.currentRoom;
       this.currentRoom = newRoom;
       this.roomNameText.setText(ROOM_DEFS[newRoom].name);
       this.showRoomNameFlash();
+
+      // Leaving office: cancel fast timer, schedule slow outside-office call (max 2)
+      if (prevRoom === 3 && newRoom !== 3) {
+        if (this.darmeshRecallTimer) {
+          this.darmeshRecallTimer.destroy();
+          this.darmeshRecallTimer = undefined;
+        }
+        if (this.darmeshWorkCycles >= 1 && this.darmeshOutsideCalls < 2) {
+          this.darmeshRecallTimer = this.time.delayedCall(
+            Phaser.Math.Between(20000, 30000),
+            () => {
+              if (this.endingActive || this.gameOverTriggered) return;
+              this.darmeshOutsideCalls++;
+              this.showDarmeshWorkReset();
+            },
+          );
+        }
+      }
+
+      // Respawn money pickup in bedroom/office when diamonds are low
+      if ((newRoom === 3 || newRoom === 4) && store.s.diamonds < 10) {
+        this.spawnBonusMoney(newRoom);
+      }
 
       // Reset 1-minute overtime timer
       this.startRoomOvertimeTimer();
@@ -1758,10 +1783,6 @@ export class WorldScene extends Phaser.Scene {
     this.r3_deskZone.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen) return;
       if (store.isTaskDone(roomKey, 'work')) return;
-      if (this.darmeshWorkCycles >= 5) {
-        this.showChrisBubble('Darmesh is satisfied. No more work calls!');
-        return;
-      }
 
       this.workCount++;
       this.r3_progressText.setText(`${this.workCount}/6`);
@@ -1785,11 +1806,7 @@ export class WorldScene extends Phaser.Scene {
         this.trySpawnJollibabee(roomKey);
         this.showTaskComplete(roomKey);
         this.darmeshWorkCycles = (this.darmeshWorkCycles || 0) + 1;
-        if (this.darmeshWorkCycles < 5) {
-          this.scheduleDarmeshWorkReset();
-        } else {
-          this.showChrisBubble('Darmesh is satisfied. No more work calls!');
-        }
+        this.scheduleDarmeshWorkReset();
       }
     });
 
@@ -1905,8 +1922,8 @@ export class WorldScene extends Phaser.Scene {
       this.startSleepSequence(roomKey);
     });
 
-    // Penguin stuffed toy — lower left side of bed, same size as whey (140px)
-    const PENGUIN_H = 200;
+    // Penguin stuffed toy — lower left side of bed
+    const PENGUIN_H = 260;
     const bedLeftX = this.r4_bed.x - (this.r4_bed.displayWidth / 2);
     this.r4_penguin = this.add.image(
       bedLeftX - PENGUIN_H / 2 + 20, FLOOR_Y - PENGUIN_H * 1.4, 'penguin',
@@ -2217,7 +2234,7 @@ export class WorldScene extends Phaser.Scene {
 
     // Vitamin bottle — beside the remote on the wall
     const vitImg = this.add.image(
-      this.rx(room, ROOM_WIDTH * 0.30), Math.round(WALL_Y * 0.7 * 1.25) + 80, 'vit',
+      this.rx(room, ROOM_WIDTH * 0.30), Math.round(WALL_Y * 0.7 * 1.55), 'vit',
     ).setDepth(10).setInteractive({ useHandCursor: true });
     sizeH(vitImg, PICKUP_H);
     if (this.vitUses >= 2) vitImg.setTint(0x666666);
@@ -2394,6 +2411,7 @@ export class WorldScene extends Phaser.Scene {
           r5_clothes.setVisible(false);
           r5_hangers.setVisible(false);
           fxSparkle(this, this.r5_basket.x, this.r5_basket.y, 12, 60);
+          this.trySpawnJollibabee(roomKey);
           this.showTaskComplete(roomKey);
         });
         this.scene.pause();
@@ -2714,8 +2732,14 @@ export class WorldScene extends Phaser.Scene {
     if (s.hearts < 1)       missing.push('No hearts!');
 
     if (missing.length > 0) {
+      // Build helpful hints for each missing stat
+      const hints: string[] = [];
+      if (s.diamonds < 10) hints.push('💎 Go to office desk — Darmesh keeps sending work (+1💎 each)');
+      if (s.preparation < 90) hints.push('📋 Redo office work or buy Flowers/Ring at the shop');
+      if (s.energy < 50) hints.push('⚡ Drink coffee, water, or take a nap');
+      const hintText = hints.length > 0 ? `\n${hints[0]}` : '';
       showBubble(this, this.r7_doorZone.x, this.r7_doorZone.y - 180,
-        `Not ready yet.\n${missing.join(' | ')}`, 3500);
+        `Not ready yet.\n${missing.join(' | ')}${hintText}`, 4500);
       return;
     }
 
@@ -2797,6 +2821,7 @@ export class WorldScene extends Phaser.Scene {
             store.addPrep(8);
             store.addEnergy(-5);
             fxSparkle(this, this.r5_basket.x, this.r5_basket.y, 10, 50);
+            this.trySpawnJollibabee(roomKey);
             this.showChrisBubble('Laundry in the basket! But there\'s more to do...');
             // Show clothes + hangers props for folding task
             const foldProps = (this as any)._r5_foldProps;
@@ -2932,9 +2957,9 @@ export class WorldScene extends Phaser.Scene {
         {
           label: '💰 Invest',
           callback: () => {
-            // Need at least 1 diamond to invest
-            if (store.s.diamonds <= 0) {
-              this.showChrisBubble('I\'m broke! No 💎 to invest...');
+            // Need at least 8 diamonds to cover potential loss
+            if (store.s.diamonds < 8) {
+              this.showChrisBubble(`Only ${store.s.diamonds} 💎... need at least 8 to risk it.`);
               this.audio.popupClose();
               return;
             }
@@ -3144,7 +3169,7 @@ export class WorldScene extends Phaser.Scene {
   private scheduleDarmeshWorkReset(): void {
     if (this.darmeshRecallTimer) this.darmeshRecallTimer.destroy();
     this.darmeshRecallTimer = this.time.delayedCall(
-      Phaser.Math.Between(10000, 18000),
+      Phaser.Math.Between(3000, 6000),
       () => {
         if (this.endingActive || this.gameOverTriggered) return;
         this.showDarmeshWorkReset();
@@ -3334,6 +3359,27 @@ export class WorldScene extends Phaser.Scene {
     if (this.chris) {
       this.bubbleMgr.chrisSay(text, 3000);
     }
+  }
+
+  /** Spawn a bonus money pickup when diamonds are low. One per room visit. */
+  private spawnBonusMoney(room: number): void {
+    const PICKUP_H = 182;
+    const xPos = this.rx(room, ROOM_WIDTH * (room === 3 ? 0.85 : 0.80));
+    const moneyImg = this.add.image(
+      xPos, FLOOR_Y - PICKUP_H / 2, 'money',
+    ).setDepth(10).setInteractive({ useHandCursor: true });
+    sizeH(moneyImg, PICKUP_H);
+
+    moneyImg.on('pointerdown', () => {
+      if (this.currentRoom !== room || this.modal.isOpen) return;
+      store.addDiamonds(3);
+      this.hud.refresh();
+      fxPop(this, moneyImg.x, moneyImg.y);
+      fxSparkle(this, moneyImg.x, moneyImg.y, 10, 50);
+      this.audio.pop();
+      this.bubbleMgr.chrisSay('Found some loose change! +3 💎', 2500);
+      moneyImg.destroy();
+    });
   }
 
   /** Shared gating for consumables.
