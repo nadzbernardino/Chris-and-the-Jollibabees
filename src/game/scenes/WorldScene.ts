@@ -1037,7 +1037,8 @@ export class WorldScene extends Phaser.Scene {
 
     this.r1_whey.on('pointerdown', () => {
       if (this.currentRoom !== room || this.modal.isOpen || this.isConsuming) return;
-      if (!this.canConsume()) return;
+      // Skip cooldown when hearts are low — let player heal with protein
+      if (store.s.hearts >= 3 && !this.canConsume()) return;
       if (store.useWhey()) {
         this.lastDrinkTime = Date.now();
         this.playConsumeAnimation('chris_whey', this.r1_whey);
